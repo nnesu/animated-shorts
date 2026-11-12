@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { staticFile } from "remotion";
 import { Batch, boxGeo, V, lam, house, prop, kitClone, Kit, Ray, setSight } from "./build";
-import { ctex, cobbleHD, stoneHD, waterNear, waterFar, cloudHD, beam, rng, planksHD } from "./paint";
+import { ctex, cobbleHD, stoneHD, waterNear, waterFar, cloudHD, beam, rng, planksHD, grassBlades } from "./paint";
 import { LIGHTS, LOOK, LightPreset } from "./lights";
 import { TONE, CHAR, LFB, twoTone, untone } from "./shade";
 import { NOINK } from "./ink";
@@ -66,7 +66,21 @@ const sightLines = (cfg: WorldCfg, only: number): Ray[] => {
 
 export type Mats = Record<string, THREE.Material>;
 /** box from (x0, y0, z0) to (x1, y1, z1) into the batch */
-export const bx = (b: Batch, m: THREE.Material, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, tile = 0) => b.add(boxGeo(V(x0, y0, z0), V(x1, y1, z1), tile), m);
+export const bx = (b: Batch, m: THREE.Material, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, tile = 0, bottom = false) => b.add(boxGeo(V(x0, y0, z0), V(x1, y1, z1), tile, bottom), m);
+/** unlit painted plane material (signs, banners, wall panels, drapes): lit ones go grey or purple in shade. Slightly under white so it does not glow.
+ *  cut = true for cut-out shapes (throne backs, pennants): transparent areas become holes */
+export const unlit = (map: THREE.Texture, cut = false) => new THREE.MeshBasicMaterial({ map, color: "#e2dada", ...(cut ? { alphaTest: 0.5 } : {}) });
+/** painted crowd strip (one per stand tier) from (x0, z0) to (x1, z1), base at y, h tall; the texture repeats every `tile` m,
+ *  offset by position so neighbouring bands do not line up. No fog (far stands stay readable); cards stand in front only for close shots */
+export const crowdBand = (R: THREE.Object3D, tex: THREE.Texture, x0: number, z0: number, x1: number, z1: number, y: number, h = 1.05, tile = 10) => {
+  const len = Math.hypot(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  if (tex.wrapS !== THREE.RepeatWrapping) { tex.wrapS = THREE.RepeatWrapping; tex.needsUpdate = true; }
+  const g = new THREE.PlaneGeometry(len, h), uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * (len / tile) + (cx * 0.37 + cz * 0.13 + y));
+  const m = new THREE.Mesh(g, lam(`crowdBand|${tex.uuid}`, () => ({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide, fog: false })));
+  m.position.set(cx, y + h / 2, cz); m.rotation.y = Math.atan2(-(z1 - z0), x1 - x0); m.layers.set(NOINK); m.receiveShadow = true; R.add(m);
+  return m;
+};
 
 export class WorldBase {
   /** the merged static geometry: add sets with prop() / house() / bx() / b.add(), then call finish() */
@@ -130,7 +144,7 @@ export class WorldBase {
     }
 
     // ---- materials ----
-    M.grass = lam("grassMol2", () => ({ color: "#88a05c" }));
+    M.grass = lam("grassKit", () => ({ map: grassBlades() }));
     M.cobble = lam("cobbleHD", () => ({ map: cobbleHD() }));
     M.wall = lam("wallHD", () => ({ map: stoneHD("wallHD", ["#c9bcaa", "#bfb19f", "#d1c5b4", "#b8aa97"], "#958776") }));
     M.cope = lam("copeHD", () => ({ map: stoneHD("copeHD", ["#e6dccd", "#ddd3c3", "#ece4d6", "#d6cbba"], "#aea293") }));

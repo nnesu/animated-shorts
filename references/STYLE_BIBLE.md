@@ -1,5 +1,5 @@
 # the reference channel style bible (study of latest 20 shorts, 2026-10-30)
-Private study only. Videos: vids/ (720p, original EN audio), transcripts: tx/, per-video measurements: measure/summary.json,
+Study notes. Videos: vids/ (720p, original EN audio), transcripts: tx/, per-video measurements: measure/summary.json,
 30 fps contact sheets: measure/<video>_sheets/ (each sheet = 2 s, 60 frames).
 
 ## Format

@@ -23,16 +23,17 @@ Read this instead of the source. The four starter files hold only story data (ab
 - `loadKit = makeKitLoader([...TOWN_KIT, "<pack>/<model>", ...])`: list every extra model. The kit key is the model name without the pack.
 - `prop(b, kit, name, x, y, z, h, yaw = 0, keep = false)`: model into the batch, centred on x/z, base on y, scaled to height h. Dropped when it blocks a sight line unless `keep`.
 - `kitClone(kit, name, h)`: the same model as its own object, for things that move or hide. Position it, `R.add(o)`, keep a field, move it in `pose(id, t, tau)`.
-- `house(b, x, z, yaw, w, d, h, style 0-7, y?)`. `bx(b, mat, x0, y0, z0, x1, y1, z1, tile?)` box. `quadUp(x0, x1, z0, z1, uRepeat, vRepeat, dy?)` ground quad: `b.add(quadUp(...), mat)`.
-- Materials: `M.grass`, `M.cobble`, `M.wall`, `M.cope`, `M.wood`, `M.floor` exist. New: `lam(key, () => ({ color | map }))` (cached two-tone); `twoTone(new THREE.MeshPhongMaterial(...))` from `shared/shade` for shiny ones.
+- `house(b, x, z, yaw, w, d, h, style 0-7, y?)`. `bx(b, mat, x0, y0, z0, x1, y1, z1, tile?, bottom?)` box; `bottom = true` for any box seen from below. `quadUp(x0, x1, z0, z1, uRepeat, vRepeat, dy?)` ground quad: `b.add(quadUp(...), mat)`.
+- Materials: `M.grass` (textured: `grassBlades()` from `shared/paint`), `M.cobble`, `M.wall`, `M.cope`, `M.wood`, `M.floor` exist. New: `lam(key, () => ({ color | map }))` (cached two-tone); `twoTone(new THREE.MeshPhongMaterial(...))` from `shared/shade` for shiny ones. `unlit(map, cut?)` (worldkit): unlit material for painted planes; `cut = true` for cut-out shapes.
+- `crowdBand(R, tex, x0, z0, x1, z1, y, h = 1.05, tile = 10)` (worldkit): painted crowd strip, one per stand tier; cards in front only for close shots.
 - Textures (`shared/paint`): `cobbleHD()`, `stoneHD(key, [4 colours], mortar)`, `planksHD()`, `beam()`, `beamHD()`, `grassHD()`, `roofHD(col)`, `brick()`, `facadeHD(...)`, and `ctex(key, w, h, (g, rand) => draw)` for a custom canvas.
 - Own meshes: `castShadow = receiveShadow = true`; thin dense ones `layers.set(NOINK)`.
 - `SUN_SHOT`: `{ shotId: { az, el } }`; interiors az 150, el 50.
 - Town at the origin: street along +z from -3 to 150, houses both sides, harbour and pier beyond z 150, far shore at z 236-330.
 
 ## cast.ts (engine: `shared/castkit.ts`, drawings: `shared/toon.ts`)
-- `add(cam, t, out, i, outfit, okey, x, z, [dx, dz], frontOpts, sideOpts = {}, y = 0, scale = 1)`: `i` = unique id (blink timing, head shape), `okey` = cache key per outfit, `[dx, dz]` = heading. Front or side drawing is picked from the camera angle. Seated: `mode: "sit"` and `y` = seat height.
-- `FrontOpts`: `mode` `"stand" | "sit" | "stroll" | "march" | "fall"`, `expr`, `look` -1..1, `phase` 0..1 (walk cycle), `wave` (arm, animate with `Math.sin`), `prop` `"icecream" | "shako" | ["hammer", n]`, `tilt`, `headTilt`, `lift`.
+- `add(cam, t, out, i, outfit, okey, x, z, [dx, dz], frontOpts, sideOpts = {}, y = 0, scale = 1)`: `i` = unique id (blink timing, head shape), `okey` = cache key per outfit, `[dx, dz]` = heading. Front or side drawing is picked from the camera angle; seated cards are always drawn front-on. Seated: `mode: "sit"` and `y` a little under the seat top (starter: 0.24 on a lounge chair; a card at the seat top floats): check one still.
+- `FrontOpts`: `mode` `"stand" | "sit" | "stroll" | "march" | "fall"`, `expr`, `look` -1..1, `phase` 0..1 (walk cycle), `wave` (arm, animate with `Math.sin`), `prop` `"icecream" | "shako" | ["hammer", n]`, `tilt`, `headTilt`, `lift`. `fall` draws an upright mid-air pose; a collapse on the ground is `mode: "sit", expr: "dazed", tilt: 0.2`.
 - `Expr`: neutral, stern, grin, laugh, whistle, nervous, shock, relief, relief_open, dazed, pained, smile, smile_closed, lick.
 - `Outfit`: `jacket`, `pants`, `boots` (required colours), `hat` (`"hair" | "cap" | "tophat" | "bonnet" | "shako" | "shako_tall" | null`), `hair`, `cap`, `dress`, `skin` (`SKINS[0-3]`), `build` (`"adult" | "stout" | "kid"`), `moustache`, `belt`, `buttons`, `sash`. Ready-made: `shopper(v)`, `KIDS[0-3]` (castkit), `KID`, `PARENT`, `townsfolk(v)`, `soldier(v)` (toon).
 - Expression changes: switch on `t > wordTime`; the blink code hides the swap.

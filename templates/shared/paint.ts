@@ -718,3 +718,11 @@ export const chainHD = () => ctex("chainHD", 256, 1024, (g) => {
   }
 });
 
+
+/** ground grass, 256 x 256 tile (4 m at the engine ground's repeat): lawn green with blade ticks and soft clumps, no stripes */
+export const grassBlades = () => ctex("grassBladesHD", 256, 256, (g, r) => {
+  g.fillStyle = "#8fb05d"; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = "#739548"; g.lineWidth = 2;
+  for (let i = 0; i < 700; i++) { const x = r() * 256, y = r() * 256; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 4, y - 5 - r() * 4); g.stroke(); }
+  g.fillStyle = "#9cbd68"; for (let i = 0; i < 120; i++) { g.beginPath(); g.arc(r() * 256, r() * 256, 3 + r() * 5, 0, 7); g.fill(); }
+});

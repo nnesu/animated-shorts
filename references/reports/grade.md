@@ -2,7 +2,7 @@
 
 Folder: `references/grade/`. Scripts are in `scripts/`, data in `data/`, images in `out/`.
 
-All reference material stays private and local. No stills were rendered and nothing under `your Remotion project` was edited; the stills were only read.
+No stills were rendered and nothing under `your Remotion project` was edited; the stills were only read.
 
 ## 0. The gap in plain words
 

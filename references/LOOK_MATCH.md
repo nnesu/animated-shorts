@@ -1,9 +1,9 @@
 # Reference look and look-match loop (rarely needed)
 
-Read only when the user asks for the original look ("like the bridge video", "reference style") or wants the look itself changed. `STYLE_BIBLE.md`, `reports/` and `legacy/` are private study material: never publish or name the source.
+Read only when the user asks for the original look ("like the bridge video", "reference style") or wants the look itself changed. `STYLE_BIBLE.md` and `reports/` are study material: never name the source in a video.
 
 ## Reference look (fallback)
-Pass `houseLook: false` to `makeShort()` in `<Name>.tsx` (thin near-black ink, no vignette, tint or light pool) and use the lower cInf values below. Targets: `legacy/` frames and `reports/`. Live example: `src/videos/bridge/`. It differs from the house look only in ink, colour and depth:
+Pass `houseLook: false` to `makeShort()` in `<Name>.tsx` (thin near-black ink, no vignette, tint or light pool) and use the lower cInf values below. Targets: `reports/`. Live example: `src/videos/bridge/`. It differs from the house look only in ink, colour and depth:
 - World ink: near-black `#030303`, 5.1 px at 6 m to 3.3 px at 90 m (reference measures about 3 px, nearly constant). Silhouettes, depth jumps and creases only; no line on wall/floor joins or the horizon.
 - Colour: day median luma about .57, non-ink 5th percentile about .23, lit chroma C* p90 about 55, day sky top about `#5e93d9` with the horizon 1.28x brighter. Golden: peach horizon `#ffd08a`, violet-blue shadows.
 - Depth: DOF on about a third of screen time. cInf at 1080: hook and extreme close-ups 15-16, close-ups 12-14, mid shots 10-12, wides 0. Fog = horizon colour, 25 to 420 m day, 20 to 360 m golden.

@@ -15,7 +15,7 @@ A change that adds reading without removing more, or that trades away quality, m
 | `references/API.md` | every run, before coding | Replaces reading engine source. Must match the code exactly. |
 | `references/QA.md`, `SOUND.md`, `RENDER.md`, `GOTCHAS.md`, `LOOK.md` | on demand, per step | One topic each. No history, no dates, no "moved from". |
 | `references/LOOK_MATCH.md`, `house/GRADER_PROMPT.md` | rarely (look changes) | |
-| `references/STYLE_BIBLE.md`, `reports/`, `legacy/` | almost never | Private study material. Never publish, never trim without the user. |
+| `references/STYLE_BIBLE.md`, `reports/` | almost never | Study material. Never trim without the user. |
 | `templates/starter/` | copied per short | Story data only, 4 files, about 8 KB. A 2-shot demo marked `EXAMPLE`. |
 | `templates/shared/`, `templates/scripts/` | copies | Exact copies of the project's `src/shared/` and `scripts/`. Never edit these copies. |
 | `templates/audio/` | run in place | Only lives here. |
@@ -28,7 +28,9 @@ Live code is in the project: `src/shared/` (engine) and `scripts/`. Edit there, 
 - No 0-10 score is ever a gate. No anchor images. Look changes are judged pairwise, before against after.
 - Stills QA order: agent on the first full set, self-checks after fixes, one agent check before the render, then the user approves the stills. Never an open "repeat until the agent is clean" loop.
 - Sound effects from free libraries first; music is one short cue per scene, generation allowed.
-- Finished shorts in `src/videos/` are never edited. They keep their own older code and do not use the kits.
+- Finished shorts in `src/videos/` are never edited. Bridge, microwave, molasses and slinky keep their own older code; marathon uses the kits, so an engine change alters it on re-render.
+- Sets are rich by default: packed crowds, ornaments, textures, flags. No flat-colour or plain-texture walls.
+- `out/<name>/comments.json` holds the user's review notes. Resolve them with `review.mjs --resolve`; never delete or reword them.
 - `REMOTION_TMP=C:/remotion-tmp` on this PC.
 
 ## Where a change goes

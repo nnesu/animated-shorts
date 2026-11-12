@@ -1,6 +1,6 @@
 # Lighting: reference vs ours
 
-This is a private study. Numbers come from 67 reference study frames (20 videos, 720x1280, captions masked), 539
+This is a study. Numbers come from 67 reference study frames (20 videos, 720x1280, captions masked), 539
 frames taken every 2 s for the grade stats, and 36 of our stills (540x960, scaled to 720-wide equivalents where pixel
 widths are quoted). Scripts, CSVs and crops are in `references/lighting/`. No stills were rendered and
 nothing under `your Remotion project` was edited. The recipe values are starting points: they come from a numerical model of our

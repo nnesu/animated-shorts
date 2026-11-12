@@ -16,5 +16,6 @@ if m:
     for t0, _ in re.findall(r"\[([\w.]+), ([\d.]+)\]", m.group(1)):
         f0 = round((consts[t0] if t0 in consts else float(t0)) * 30)
         kicks.append([f0, f0 + 8])
-json.dump({"shots": shots, "xfade": xfade, "flash": [flash, flash + 4], "planned": cuts + kicks}, open(sys.argv[2] if len(sys.argv) > 2 else "out/bridge/shots.json", "w"), indent=1)
+total = int(re.search(r"TOTAL = (\d+)", src).group(1))
+json.dump({"fps": 30, "total": total, "shots": shots, "xfade": xfade, "flash": [flash, flash + 4], "planned": cuts + kicks}, open(sys.argv[2] if len(sys.argv) > 2 else "out/bridge/shots.json", "w"), indent=1)
 print(len(shots), "shots", xfade, flash, "cuts", [c[0] for c in cuts], "kicks", kicks)

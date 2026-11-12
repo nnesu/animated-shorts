@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Short review</title>
+<style>
+  :root { --bg: #16171b; --panel: #22242a; --line: #34373f; --text: #e8e8ea; --dim: #9a9ca3; --open: #f0a830; --done: #4caf7a; --accent: #6aa7ff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; display: flex; gap: 16px; padding: 16px; height: 100vh; }
+  #left { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+  video { height: calc(100% - 150px); aspect-ratio: 9 / 16; background: #000; border-radius: 6px; }
+  #hud { font: 600 15px ui-monospace, monospace; }
+  #bar { position: relative; height: 22px; background: var(--panel); border-radius: 4px; cursor: pointer; }
+  #pos { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+  .mk { position: absolute; top: 3px; width: 6px; height: 16px; margin-left: -3px; border-radius: 2px; background: var(--open); }
+  .mk.done { background: var(--done); }
+  #add { display: none; gap: 6px; }
+  #add.on { display: flex; }
+  #add input { flex: 1; }
+  input, select, button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; font: inherit; }
+  button { cursor: pointer; }
+  #right { flex: 1; display: flex; flex-direction: column; min-width: 280px; height: 100%; }
+  #list { flex: 1; overflow: auto; border-top: 1px solid var(--line); margin-top: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .row:hover { background: var(--panel); }
+  .row .t { flex: 1; }
+  .row.done .t { color: var(--dim); text-decoration: line-through; }
+  .tag { font-size: 12px; color: var(--dim); min-width: 120px; font-family: ui-monospace, monospace; }
+  .keys { color: var(--dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="left">
+  <video id="v" src="/video" preload="auto"></video>
+  <div id="hud">-</div>
+  <div id="bar"><div id="pos"></div></div>
+  <div id="add"><select id="tag"><option>look</option><option>audio</option><option>timing</option><option>horizon</option><option>other</option></select><input id="txt" placeholder="note for this frame (Enter saves, Esc cancels)"></div>
+  <div class="keys">Space play/pause · , . 1 frame · Shift+, . 10 frames · [ ] prev/next note · C comment</div>
+</div>
+<div id="right">
+  <div><b id="title">Notes</b> &nbsp; <label><input type="checkbox" id="onlyOpen"> open only</label></div>
+  <div id="list"></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id), v = $("v");
+let M, notes = [], cur = 0, addFrame = null;
+const clamp = (f) => Math.max(0, Math.min(M.total - 1, f));
+const seek = (f) => { v.pause(); cur = clamp(f); v.currentTime = (cur + 0.5) / M.fps; hud(); };
+const shotOf = (f) => (M.shots.find((s) => s.a <= f && f < s.b) || {}).id;
+const hud = () => { $("hud").textContent = `frame ${cur} / ${M.total - 1} · ${(cur / M.fps).toFixed(2)} s · shot ${shotOf(cur)}`; $("pos").style.left = (cur / (M.total - 1)) * 100 + "%"; };
+const api = (method, url, body) => fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) }).then((r) => r.json());
+const load = async () => { notes = (await api("GET", "/api/comments")).sort((a, b) => a.frame - b.frame); draw(); };
+function draw() {
+  $("bar").querySelectorAll(".mk").forEach((e) => e.remove());
+  for (const n of notes) {
+    const e = document.createElement("div"); e.className = "mk" + (n.resolved ? " done" : ""); e.title = n.text;
+    e.style.left = (n.frame / (M.total - 1)) * 100 + "%"; e.onclick = (ev) => { ev.stopPropagation(); seek(n.frame); }; $("bar").append(e);
+  }
+  const L = $("list"); L.innerHTML = "";
+  for (const n of notes.filter((n) => !$("onlyOpen").checked || !n.resolved)) {
+    const r = document.createElement("div"); r.className = "row" + (n.resolved ? " done" : "");
+    r.innerHTML = `<input type="checkbox" ${n.resolved ? "checked" : ""} title="resolved"><span class="tag">${n.id} s${n.shot} f${n.frame} ${n.tag}</span><span class="t"></span><button>edit</button><button>delete</button>`;
+    r.querySelector(".t").textContent = n.text;
+    const [cb, , , ed, del] = r.children;
+    r.onclick = () => seek(n.frame);
+    cb.onclick = async (e) => { e.stopPropagation(); await api("PATCH", `/api/comments/${n.id}`, { resolved: cb.checked }); load(); };
+    ed.onclick = async (e) => { e.stopPropagation(); const t = prompt("Edit note", n.text); if (t !== null) { await api("PATCH", `/api/comments/${n.id}`, { text: t }); load(); } };
+    del.onclick = async (e) => { e.stopPropagation(); if (confirm(`Delete ${n.id}?`)) { await api("DELETE", `/api/comments/${n.id}`); load(); } };
+    L.append(r);
+  }
+  $("title").textContent = `Notes (${notes.filter((n) => !n.resolved).length} open)`;
+}
+const tick = (_, meta) => { cur = clamp(Math.round(meta.mediaTime * M.fps)); hud(); v.requestVideoFrameCallback(tick); };
+v.addEventListener("seeked", () => { cur = clamp(Math.floor(v.currentTime * M.fps + 1e-3)); hud(); });
+$("bar").onclick = (e) => { const b = $("bar").getBoundingClientRect(); seek(Math.round(((e.clientX - b.left) / b.width) * (M.total - 1))); };
+$("onlyOpen").onchange = draw;
+const closeAdd = () => { $("add").classList.remove("on"); $("txt").value = ""; addFrame = null; $("txt").blur(); };
+document.addEventListener("keydown", async (e) => {
+  const typing = document.activeElement === $("txt") || document.activeElement === $("tag");
+  if (typing) {
+    if (e.key === "Escape") closeAdd();
+    if (e.key === "Enter" && $("txt").value.trim()) { await api("POST", "/api/comments", { frame: addFrame, tag: $("tag").value, text: $("txt").value.trim() }); closeAdd(); load(); }
+    return;
+  }
+  const step = e.shiftKey ? 10 : 1;
+  if (e.code === "Space") { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+  else if (e.code === "Comma") seek(cur - step);
+  else if (e.code === "Period") seek(cur + step);
+  else if (e.code === "BracketLeft") { const n = [...notes].reverse().find((n) => n.frame < cur); if (n) seek(n.frame); }
+  else if (e.code === "BracketRight") { const n = notes.find((n) => n.frame > cur); if (n) seek(n.frame); }
+  else if (e.code === "KeyC") { e.preventDefault(); v.pause(); addFrame = cur; $("add").classList.add("on"); $("txt").focus(); }
+});
+(async () => { M = await api("GET", "/api/meta"); document.title = `Review: ${M.name}`; if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(tick); seek(0); load(); })();
+</script>
+</body>
+</html>

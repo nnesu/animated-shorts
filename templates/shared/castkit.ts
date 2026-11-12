@@ -234,6 +234,7 @@ const add = (cam: CamInfo, t: number, out: Stage, i: number, o: Outfit, okey: st
   fo: FrontOpts, so: SideOpts = {}, y = 0, scale = 1) => {
   if (cam.pos.distanceTo(tmp.set(x, y + 1, z)) < 0.9) return; // nobody stands on the lens
   const view = viewOf(cam, x, z, dir[0], dir[1]);
+  if (fo.mode === "sit") view.side = false; // the sit drawing exists only front-on
   const blink = lidAt(t, i);
   out.places.push(person(cam, { i, o, okey }, x, y, z, view, { ...fo, blink }, { expr: fo.expr, mode: fo.mode === "march" ? "march" : "stand", phase: fo.phase, ...so, blink, stride: view.fs }, scale));
   if (fo.mode !== "sit") blob(out, x, y, z, scale);

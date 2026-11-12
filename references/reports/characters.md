@@ -1,6 +1,6 @@
 # Characters: how the reference builds its 2D cast vs. our bridge cast
 
-Private study. Reference frames, crops and side-by-sides stay inside `references/characters/`.
+Study. Reference frames, crops and side-by-sides stay inside `references/characters/`.
 No files under `your Remotion project` were edited and no new stills were rendered. Our numbers come from `toon.ts` (read only) and from stills already in `your Remotion project/out/bridge/test/`.
 Only general construction rules were taken from the reference. None of its characters (chef, cowboy, potato-heads and so on) is copied.
 
@@ -706,7 +706,7 @@ Everything is under `references/characters/`.
 - `crops/compare_bodies.png`: 5 reference bodies vs our officer and rifleman, all scaled to the same head height with HH guide lines.
 - `crops/spec_preview.png`: the proposed construction drawn in PIL with the numbers in this report (`scripts/spec_preview.py`), showing rifleman ×2, officer, kid and townsperson. It is a check that the spec holds together, not a render of the reel. The TS snippets in §3 type-check under `tsc --strict` against `toon.ts` (harness in `tscheck/check.ts`).
 
-**Reference crops (private):**
+**Reference crops:**
 - `crops/heads2/*.png`: 38 heads with rays and fits.
 - `crops/bodies/b01…b15*.png`: gridded full bodies.
 - `crops/zoom_10_018_outline.png`, `crops/head_shading_stretched.jpg`.

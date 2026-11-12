@@ -1,5 +1,5 @@
 // STARTER timeline: data only. The camera engine is shared/camkit.ts. Shots are timed to the voice (word@frame listing of
-// _voiceover/words.json). Everything marked EXAMPLE is a 2-shot demo (street wide, interior two-shot + close-up): replace it.
+// _voiceover/<name>/words.json). Everything marked EXAMPLE is a 2-shot demo (street wide, interior two-shot + close-up): replace it.
 // Sets live far apart in one world: the town + harbour at the origin, every other set 100+ m away.
 import { at, dolly, zoom, pushK, sh, makeTimeline, V3, Key, Dof, ShotDef } from "../../shared/camkit";
 

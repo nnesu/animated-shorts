@@ -1,7 +1,7 @@
 # Textures: reference surface painting vs ours, and how to paint ours procedurally
 
 Topic folder: `references/textures/` (scripts, crops, data, side-by-sides, prototype).
-Private study only. Nothing here was uploaded, and nothing under `your Remotion project` was edited or rendered.
+Study. Nothing under `your Remotion project` was edited or rendered.
 
 ## 0. Bottom line
 

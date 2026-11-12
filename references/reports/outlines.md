@@ -1,7 +1,7 @@
 # Outlines (black ink lines on the 3D world): reference vs ours
 
 Work folder: `references/outlines/` (scripts, crops, sheets, results, recipe, toy test harness).
-Private study only. Nothing under `your Remotion project` was edited; no new stills were rendered.
+Study. Nothing under `your Remotion project` was edited; no new stills were rendered.
 
 ## 1. The gap in one paragraph
 

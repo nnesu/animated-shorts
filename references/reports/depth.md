@@ -1,6 +1,6 @@
 # Depth cues, glow and framing: reference vs ours
 
-Private study. Only general rules and numbers are taken from the 20 reference videos: no traced shots, characters or props.
+Study. Only general rules and numbers are taken from the 20 reference videos: no traced shots, characters or props.
 Working folder: `references/depth/` (scripts, data, crops).
 Units: blur is a Gaussian sigma in **720p px** (reference 720x1280) unless marked. Our stills are 540x960 and are scaled ×720/540.
 To get a blur-disc radius at our 1080x1920 output, use **R(px @1080p) ≈ 3 × sigma720** (a uniform disc has sigma = R/2, and 1080p is ×1.5).

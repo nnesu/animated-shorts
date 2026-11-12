@@ -2,7 +2,7 @@
 
 Routine QA is `../QA.md`. Use this only when changing the look itself.
 
-- Spawn one fresh agent per round, `model: opus`, `effort: medium`. It sees images only: never source files (that doubles the tokens), never `references/legacy/`.
+- Spawn one fresh agent per round, `model: opus`, `effort: medium`. It sees images only: never source files (that doubles the tokens).
 - Frames: 6 fixed frames per video at 540x960 (`bridge-stills.mjs ... 0.5`), full size, never sheets. Pick once to cover: wide, hero object wide, crowd, hero object detail, character close-up, staging wide.
 - Render each frame before and after the change. Flip a coin per pair for which is X, log it, decode after.
 - No anchor images: each pair is the same frame before and after, so the comparison needs no outside reference.
