@@ -39,6 +39,8 @@ export const parseRange = (h, size) => {
   return a >= size || b < a ? "416" : [a, b];
 };
 export const newId = (db) => `c_${String(db.next).padStart(3, "0")}`;
+/** optional highlight: [x, y, w, h] as fractions of the frame (0-1) */
+export const okBox = (b) => b === undefined || (Array.isArray(b) && b.length === 4 && b.every((n) => typeof n === "number" && n >= 0 && n <= 1) && b[0] + b[2] <= 1.001 && b[1] + b[3] <= 1.001);
 
 const fail = (msg) => { console.error(msg); process.exit(1); };
 const files = (name) => { const d = path.join("out", name); return { dir: d, shots: path.join(d, "shots.json"), notes: path.join(d, "comments.json") }; };
@@ -66,6 +68,7 @@ function selftest() {
   ok(R("bytes=0-") === "[0,999]", "r0"); ok(R("bytes=100-199") === "[100,199]", "r1"); ok(R("bytes=0-5000") === "[0,999]", "r2");
   ok(R("bytes=1000-") === '"416"', "r3"); ok(R("bytes=abc") === '"416"', "r4"); ok(parseRange(undefined, 1000) === null, "r5");
   ok(shotOf(meta, 119).id === 1 && shotOf(meta, 120).id === 2, "shot lookup");
+  ok(okBox(undefined) && okBox([0.1, 0.2, 0.3, 0.4]) && !okBox([0.8, 0, 0.5, 0.1]) && !okBox([0, 0, 1]) && !okBox("x"), "box check");
   console.log(process.exitCode ? "selftest FAILED" : "selftest ok");
 }
 
@@ -74,7 +77,8 @@ function dump(name) {
   warnStale(db, meta);
   const open = db.comments.filter((c) => !c.resolved).sort((p, q) => p.frame - q.frame);
   if (!open.length) return console.log("no open comments");
-  for (const c of open) console.log(`s${c.shot} f${c.frame} [${c.tag}] ${c.id} ${c.text.replace(/\s+/g, " ")}`);
+  const pc = (n) => Math.round(n * 100);
+  for (const c of open) console.log(`s${c.shot} f${c.frame} [${c.tag}] ${c.id} ${c.text.replace(/\s+/g, " ")}` + (c.box ? ` (box: x ${pc(c.box[0])}% y ${pc(c.box[1])}% w ${pc(c.box[2])}% h ${pc(c.box[3])}% of the frame)` : ""));
   const pic = redoRanges(meta, open.filter((c) => ["look", "horizon", "other"].includes(c.tag)).map((c) => c.frame));
   const timing = open.filter((c) => c.tag === "timing");
   let line = `open ${open.length} | ` + (pic.length ? "--redo " + pic.map(([a, b]) => `${a}-${b}`).join(",") : "no picture re-render");
@@ -120,9 +124,9 @@ function serve(name, port, video, force) {
       if (!hostOk(req)) return send(res, 403, { error: "forbidden" });
       const db = readDb(notes); // from disk every time: a CLI --resolve is never overwritten
       if (req.method === "POST" && !m[1]) {
-        const { frame, tag, text } = await body(req);
-        if (!Number.isInteger(frame) || frame < 0 || frame >= meta.total || !TAGS.includes(tag) || typeof text !== "string") return send(res, 400, { error: "bad note" });
-        const c = { id: newId(db), frame, time: Math.round((frame / meta.fps) * 1000) / 1000, shot: shotOf(meta, frame)?.id ?? null, total: meta.total, tag, text, resolved: false, createdAt: new Date().toISOString() };
+        const { frame, tag, text, box } = await body(req);
+        if (!Number.isInteger(frame) || frame < 0 || frame >= meta.total || !TAGS.includes(tag) || typeof text !== "string" || !okBox(box)) return send(res, 400, { error: "bad note" });
+        const c = { id: newId(db), frame, time: Math.round((frame / meta.fps) * 1000) / 1000, shot: shotOf(meta, frame)?.id ?? null, total: meta.total, tag, text, ...(box ? { box } : {}), resolved: false, createdAt: new Date().toISOString() };
         db.next++; db.comments.push(c); writeDb(notes, db);
         return send(res, 200, c);
       }
@@ -130,7 +134,7 @@ function serve(name, port, video, force) {
       if (!c) return send(res, 404, { error: "no such note" });
       if (req.method === "DELETE") { db.comments = db.comments.filter((x) => x !== c); writeDb(notes, db); return send(res, 200, { ok: true }); }
       const p = await body(req);
-      if (Object.keys(p).some((k) => !["text", "tag", "resolved"].includes(k)) || ("text" in p && typeof p.text !== "string") || ("tag" in p && !TAGS.includes(p.tag)) || ("resolved" in p && typeof p.resolved !== "boolean")) return send(res, 400, { error: "bad patch" });
+      if (Object.keys(p).some((k) => !["text", "tag", "resolved", "box"].includes(k)) || ("text" in p && typeof p.text !== "string") || ("tag" in p && !TAGS.includes(p.tag)) || ("resolved" in p && typeof p.resolved !== "boolean") || !okBox(p.box)) return send(res, 400, { error: "bad patch" });
       Object.assign(c, p); writeDb(notes, db);
       return send(res, 200, c);
     } catch (e) {

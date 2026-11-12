@@ -9,7 +9,12 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; display: flex; gap: 16px; padding: 16px; height: 100vh; }
   #left { display: flex; flex-direction: column; gap: 8px; height: 100%; }
-  video { height: calc(100% - 150px); aspect-ratio: 9 / 16; background: #000; border-radius: 6px; }
+  #stage { position: relative; height: calc(100% - 150px); aspect-ratio: 9 / 16; }
+  video { width: 100%; height: 100%; background: #000; border-radius: 6px; display: block; }
+  #ov { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+  .box { position: absolute; border: 3px solid var(--open); box-shadow: 0 0 0 1px #000; pointer-events: none; }
+  .box.done { border-color: var(--done); }
+  .box.new { border-style: dashed; border-color: var(--accent); }
   #hud { font: 600 15px ui-monospace, monospace; }
   #bar { position: relative; height: 22px; background: var(--panel); border-radius: 4px; cursor: pointer; }
   #pos { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); }
@@ -32,11 +37,11 @@
 </head>
 <body>
 <div id="left">
-  <video id="v" src="/video" preload="auto"></video>
+  <div id="stage"><video id="v" src="/video" preload="auto"></video><div id="ov"></div></div>
   <div id="hud">-</div>
   <div id="bar"><div id="pos"></div></div>
   <div id="add"><select id="tag"><option>look</option><option>audio</option><option>timing</option><option>horizon</option><option>other</option></select><input id="txt" placeholder="note for this frame (Enter saves, Esc cancels)"></div>
-  <div class="keys">Space play/pause · , . 1 frame · Shift+, . 10 frames · [ ] prev/next note · C comment</div>
+  <div class="keys">Space play/pause · , . 1 frame · Shift+, . 10 frames · [ ] prev/next note · C comment · drag on the frame to highlight</div>
 </div>
 <div id="right">
   <div><b id="title">Notes</b> &nbsp; <label><input type="checkbox" id="onlyOpen"> open only</label></div>
@@ -44,13 +49,20 @@
 </div>
 <script>
 const $ = (id) => document.getElementById(id), v = $("v");
-let M, notes = [], cur = 0, addFrame = null;
+let M, notes = [], cur = 0, addFrame = null, box = null, drag = null;
 const clamp = (f) => Math.max(0, Math.min(M.total - 1, f));
 const seek = (f) => { v.pause(); cur = clamp(f); v.currentTime = (cur + 0.5) / M.fps; hud(); };
 const shotOf = (f) => (M.shots.find((s) => s.a <= f && f < s.b) || {}).id;
-const hud = () => { $("hud").textContent = `frame ${cur} / ${M.total - 1} · ${(cur / M.fps).toFixed(2)} s · shot ${shotOf(cur)}`; $("pos").style.left = (cur / (M.total - 1)) * 100 + "%"; };
+const hud = () => { $("hud").textContent = `frame ${cur} / ${M.total - 1} · ${(cur / M.fps).toFixed(2)} s · shot ${shotOf(cur)}`; $("pos").style.left = (cur / (M.total - 1)) * 100 + "%"; boxes(); };
+/** highlights: every note on this frame, plus the one being drawn */
+function boxes() {
+  const ov = $("ov"); ov.innerHTML = "";
+  const put = (b, cls) => { const e = document.createElement("div"); e.className = "box " + cls; Object.assign(e.style, { left: b[0] * 100 + "%", top: b[1] * 100 + "%", width: b[2] * 100 + "%", height: b[3] * 100 + "%" }); ov.append(e); };
+  for (const n of notes) if (n.box && n.frame === cur) put(n.box, n.resolved ? "done" : "");
+  if (box && addFrame === cur) put(box, "new");
+}
 const api = (method, url, body) => fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) }).then((r) => r.json());
-const load = async () => { notes = (await api("GET", "/api/comments")).sort((a, b) => a.frame - b.frame); draw(); };
+const load = async () => { notes = (await api("GET", "/api/comments")).sort((a, b) => a.frame - b.frame); draw(); boxes(); };
 function draw() {
   $("bar").querySelectorAll(".mk").forEach((e) => e.remove());
   for (const n of notes) {
@@ -60,7 +72,7 @@ function draw() {
   const L = $("list"); L.innerHTML = "";
   for (const n of notes.filter((n) => !$("onlyOpen").checked || !n.resolved)) {
     const r = document.createElement("div"); r.className = "row" + (n.resolved ? " done" : "");
-    r.innerHTML = `<input type="checkbox" ${n.resolved ? "checked" : ""} title="resolved"><span class="tag">${n.id} s${n.shot} f${n.frame} ${n.tag}</span><span class="t"></span><button>edit</button><button>delete</button>`;
+    r.innerHTML = `<input type="checkbox" ${n.resolved ? "checked" : ""} title="resolved"><span class="tag">${n.id} s${n.shot} f${n.frame} ${n.tag}${n.box ? " ▭" : ""}</span><span class="t"></span><button>edit</button><button>delete</button>`;
     r.querySelector(".t").textContent = n.text;
     const [cb, , , ed, del] = r.children;
     r.onclick = () => seek(n.frame);
@@ -75,12 +87,17 @@ const tick = (_, meta) => { cur = clamp(Math.round(meta.mediaTime * M.fps)); hud
 v.addEventListener("seeked", () => { cur = clamp(Math.floor(v.currentTime * M.fps + 1e-3)); hud(); });
 $("bar").onclick = (e) => { const b = $("bar").getBoundingClientRect(); seek(Math.round(((e.clientX - b.left) / b.width) * (M.total - 1))); };
 $("onlyOpen").onchange = draw;
-const closeAdd = () => { $("add").classList.remove("on"); $("txt").value = ""; addFrame = null; $("txt").blur(); };
+const closeAdd = () => { $("add").classList.remove("on"); $("txt").value = ""; addFrame = null; box = null; $("txt").blur(); boxes(); };
+const openAdd = () => { v.pause(); addFrame = cur; $("add").classList.add("on"); $("txt").focus(); };
+const at = (e) => { const r = $("ov").getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; };
+$("ov").onpointerdown = (e) => { v.pause(); drag = at(e); $("ov").setPointerCapture(e.pointerId); };
+$("ov").onpointermove = (e) => { if (!drag) return; const [x, y] = at(e); box = [Math.min(x, drag[0]), Math.min(y, drag[1]), Math.abs(x - drag[0]), Math.abs(y - drag[1])].map((n) => Math.round(n * 1000) / 1000); addFrame = cur; boxes(); };
+$("ov").onpointerup = () => { drag = null; if (box && box[2] > 0.01 && box[3] > 0.01) openAdd(); else { box = null; boxes(); } };
 document.addEventListener("keydown", async (e) => {
   const typing = document.activeElement === $("txt") || document.activeElement === $("tag");
   if (typing) {
     if (e.key === "Escape") closeAdd();
-    if (e.key === "Enter" && $("txt").value.trim()) { await api("POST", "/api/comments", { frame: addFrame, tag: $("tag").value, text: $("txt").value.trim() }); closeAdd(); load(); }
+    if (e.key === "Enter" && $("txt").value.trim()) { await api("POST", "/api/comments", { frame: addFrame, tag: $("tag").value, text: $("txt").value.trim(), ...(box ? { box } : {}) }); closeAdd(); load(); }
     return;
   }
   const step = e.shiftKey ? 10 : 1, is = (code, ...keys) => e.code === code || keys.includes(e.key); // code: physical key; key: what some layouts and tools send instead
@@ -89,7 +106,7 @@ document.addEventListener("keydown", async (e) => {
   else if (is("Period", ".", ">")) seek(cur + step);
   else if (is("BracketLeft", "[")) { const n = [...notes].reverse().find((n) => n.frame < cur); if (n) seek(n.frame); }
   else if (is("BracketRight", "]")) { const n = notes.find((n) => n.frame > cur); if (n) seek(n.frame); }
-  else if (is("KeyC", "c", "C")) { e.preventDefault(); v.pause(); addFrame = cur; $("add").classList.add("on"); $("txt").focus(); }
+  else if (is("KeyC", "c", "C")) { e.preventDefault(); openAdd(); }
 });
 (async () => { M = await api("GET", "/api/meta"); document.title = `Review: ${M.name}`; if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(tick); seek(0); load(); })();
 </script>

@@ -50,7 +50,7 @@ Tested on 16 stills (one run): 6 of 6 planted defects found; 2 of 10 good frames
 Usual failures: a flat hold reads as a freeze (12 frames or more: add a creeping push-in); a loop that resets mid-shot reads as a pop (give it an explicit switch time).
 
 ## 3. User review
-The user watches and listens once. For notes tied to a frame the user runs `node scripts/review.mjs <name>` and comments in the page (`http://127.0.0.1:5177`). When the user says "read comments": `node scripts/review.mjs <name> --dump` prints one line per open note (`s<shot> f<frame> [tag] <id> <text>`) and the `--redo` ranges. Do not read `out/<name>/comments.json`. After the fixed video is delivered: `node scripts/review.mjs <name> --resolve <ids>`. Never delete or reword a note. The player needs a video with exactly `TOTAL` frames: never cut frames out of a final after the render.
+The user watches and listens once. For notes tied to a frame the user runs `node scripts/review.mjs <name>` and comments in the page (`http://127.0.0.1:5177`). When the user says "read comments": `node scripts/review.mjs <name> --dump` prints one line per open note (`s<shot> f<frame> [tag] <id> <text>`, plus `(box: x y w h % of the frame)` when the user drew a highlight: look there in that frame) and the `--redo` ranges. Do not read `out/<name>/comments.json`. After the fixed video is delivered: `node scripts/review.mjs <name> --resolve <ids>`. Never delete or reword a note. The player needs a video with exactly `TOTAL` frames: never cut frames out of a final after the render.
 
 ## Look changes only
 Changing the look itself (ink, grade, DOF, lighting) is judged by pairwise A/B on 6 fixed frames: `house/GRADER_PROMPT.md`. Sandbox renders for that: `LOOK.md` "Look-match loop".
