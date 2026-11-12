@@ -1,8 +1,6 @@
 # Claude Animated Shorts
 
-The free Claude skill from the video **"How to Make Viral Animated Shorts Using Claude (Full Workflow)"**.
-
-It makes vertical animated story shorts (length follows the story, about 40-90 s): 2D characters in a colourful 3D world, with ink outlines, a painted town, lens blur, gliding cameras and free CC0 sound effects and a quiet background music bed ducked under the voice. Everything is rendered with three.js inside Remotion on your own PC, with no AI video generator.
+A Claude Code skill that turns a short true story into a finished vertical video (1080x1920, about 40-90 s): flat 2D cartoon characters in a painted 3D world, narrated, with sound effects and scene music. Claude researches the facts, writes the script, plans and builds every shot in three.js inside Remotion, checks stills, renders on your PC and mixes the audio. You approve the script and the stills, then review the final in a frame-accurate player; no AI video generator is used.
 
 ## What's inside
 | Path | What it is |
