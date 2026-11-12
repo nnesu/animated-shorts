@@ -9,7 +9,7 @@ import path from "node:path";
 
 const SKILL = ".claude/skills/cartoon-3d-short/templates";
 const PAIRS = [["scripts", `${SKILL}/scripts`, (f) => true], ["src/shared", `${SKILL}/shared`, (f) => /\.tsx?$/.test(f)]];
-const sha = (f) => crypto.createHash("sha1").update(fs.readFileSync(f)).digest("hex");
+const sha = (f) => crypto.createHash("sha1").update(fs.readFileSync(f, "utf8").replace(/\r\n/g, "\n")).digest("hex"); // line endings ignored: git checkouts may rewrite them
 let bad = 0;
 for (const [live, tpl, keep] of PAIRS) {
   const isFile = (n) => [live, tpl].some((d) => fs.existsSync(`${d}/${n}`) && fs.statSync(`${d}/${n}`).isFile());
