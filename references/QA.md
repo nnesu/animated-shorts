@@ -50,7 +50,12 @@ Tested on 16 stills (one run): 6 of 6 planted defects found; 2 of 10 good frames
 Usual failures: a flat hold reads as a freeze (12 frames or more: add a creeping push-in); a loop that resets mid-shot reads as a pop (give it an explicit switch time).
 
 ## 3. User review
-The user watches and listens once. For notes tied to a frame the user runs `node scripts/review.mjs <name>` and comments in the page (`http://127.0.0.1:5177`). When the user says "read comments": `node scripts/review.mjs <name> --dump` prints one line per open note (`s<shot> f<frame> [tag] <id> <text>`, plus `(box: x y w h % of the frame)` when the user drew a highlight: look there in that frame) and the `--redo` ranges. Do not read `out/<name>/comments.json`. After the fixed video is delivered: `node scripts/review.mjs <name> --resolve <ids>`. Never delete or reword a note. The player needs a video with exactly `TOTAL` frames: never cut frames out of a final after the render.
+After `short_qa.py` exits 0, in the main session (a subagent's background command wakes nobody): set `runtimeArgs` of the `review` entry in `.claude/launch.json` to `scripts/review.mjs`, `<name>`; `preview_stop` any running review server; `preview_start` `review`; run `node scripts/review.mjs <name> --wait-submit` as a background command (one per short). The user comments on frames and presses Submit (Approve when no note is open). The command then prints `submit: approved`, or `submit: N notes` plus one line per open note (`s<shot> f<frame> [tag] <id> <text>`, plus `(box: x y w h % of the frame)`: look there in that frame) and the `--redo` ranges, and exits, which wakes you.
+- `submit: N notes`: `preview_stop` first. Fix: look/horizon/other within the printed `--redo` ranges; audio in the events/cues and the mix only; timing = re-time, then show the user stills before rendering. Render stills of the noted frames and self-check them, `render_chunks.mjs --redo`, mix, `bridge_shots.py`, `short_qa.py`, `node scripts/review.mjs <name> --resolve <ids>` for the fixed notes, restart the player and the waiter, one line to the user.
+- `submit: approved`: Deliver.
+- No Submit and the user says "read comments": `node scripts/review.mjs <name> --dump`.
+
+Do not read `out/<name>/comments.json`. Never delete or reword a note. The player needs a video with exactly `TOTAL` frames: never cut frames out of a final after the render.
 
 ## Look changes only
 Changing the look itself (ink, grade, DOF, lighting) is judged by pairwise A/B on 6 fixed frames: `house/GRADER_PROMPT.md`. Sandbox renders for that: `LOOK.md` "Look-match loop".

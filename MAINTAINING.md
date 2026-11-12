@@ -26,11 +26,11 @@ Live code is in the project: `src/shared/` (engine) and `scripts/`. Edit there, 
 - Final export 1080x1920 only. Fixes re-render changed chunks only.
 - Every shot hides the horizon.
 - No 0-10 score is ever a gate. No anchor images. Look changes are judged pairwise, before against after.
-- Stills QA order: agent on the first full set, self-checks after fixes, one agent check before the render, then the user approves the stills. Never an open "repeat until the agent is clean" loop.
+- Stills QA order: agent on the first full set, self-checks after fixes, one agent check before the render, then the user approves the stills. After the final render the review player's Submit is the go-ahead for fixes (stills first only when `TOTAL` changes). Never an open "repeat until the agent is clean" loop.
 - Sound effects from free libraries first; music is one short cue per scene, generation allowed.
 - Finished shorts in `src/videos/` are never edited. Bridge, microwave, molasses and slinky keep their own older code; marathon uses the kits, so an engine change alters it on re-render.
 - Sets are rich by default: packed crowds, ornaments, textures, flags. No flat-colour or plain-texture walls.
-- `out/<name>/comments.json` holds the user's review notes. Resolve them with `review.mjs --resolve`; never delete or reword them.
+- `out/<name>/comments.json` holds the user's review notes. Resolve them with `review.mjs --resolve`; never delete or reword them. Submit writes `out/<name>/submit.json`, consumed by `review.mjs --wait-submit`.
 - `REMOTION_TMP=C:/remotion-tmp` on this PC.
 
 ## Where a change goes

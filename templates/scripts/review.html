@@ -44,7 +44,7 @@
   <div class="keys">Space play/pause · , . 1 frame · Shift+, . 10 frames · [ ] prev/next note · C comment · drag on the frame to highlight</div>
 </div>
 <div id="right">
-  <div><b id="title">Notes</b> &nbsp; <label><input type="checkbox" id="onlyOpen"> open only</label></div>
+  <div><b id="title">Notes</b> &nbsp; <label><input type="checkbox" id="onlyOpen"> open only</label> &nbsp; <button id="submit" title="done reviewing: the agent starts fixing the open notes">Submit</button></div>
   <div id="list"></div>
 </div>
 <script>
@@ -81,12 +81,16 @@ function draw() {
     del.onclick = async (e) => { e.stopPropagation(); if (confirm(`Delete ${n.id}?`)) { await api("DELETE", `/api/comments/${n.id}`); load(); } };
     L.append(r);
   }
-  $("title").textContent = `Notes (${notes.filter((n) => !n.resolved).length} open)`;
+  const open = notes.filter((n) => !n.resolved).length;
+  $("title").textContent = `Notes (${open} open)`;
+  if (!$("submit").disabled) $("submit").textContent = open ? `Submit ${open} notes` : "Approve";
 }
 const tick = (_, meta) => { cur = clamp(Math.round(meta.mediaTime * M.fps)); hud(); v.requestVideoFrameCallback(tick); };
 v.addEventListener("seeked", () => { cur = clamp(Math.floor(v.currentTime * M.fps + 1e-3)); hud(); });
 $("bar").onclick = (e) => { const b = $("bar").getBoundingClientRect(); seek(Math.round(((e.clientX - b.left) / b.width) * (M.total - 1))); };
 $("onlyOpen").onchange = draw;
+// one click only: a second submit.json after the agent consumed the first would read as a false "approved"
+$("submit").onclick = async () => { $("submit").disabled = true; await api("POST", "/api/submit", {}); $("submit").textContent = `Submitted ${new Date().toTimeString().slice(0, 5)}`; };
 const closeAdd = () => { $("add").classList.remove("on"); $("txt").value = ""; addFrame = null; box = null; $("txt").blur(); boxes(); };
 const openAdd = () => { v.pause(); addFrame = cur; $("add").classList.add("on"); $("txt").focus(); };
 const at = (e) => { const r = $("ov").getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; };

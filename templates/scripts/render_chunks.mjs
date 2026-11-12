@@ -16,6 +16,10 @@ if (!process.env.REMOTION_TMP) { console.error("set REMOTION_TMP to a folder on 
 const total = Number(totalArg), chunk = Number(chunkArg);
 const dir = out.replace(/\.mp4$/i, "") + "_chunks";
 fs.mkdirSync(dir, { recursive: true });
+// chunks from another timeline (re-timed voice, other chunk size) would be reused silently: they pass the frame-count test
+const metaF = path.join(dir, "meta.json"), meta = fs.existsSync(metaF) ? JSON.parse(fs.readFileSync(metaF, "utf8")) : null;
+if (meta && (meta.total !== total || meta.chunk !== chunk)) { console.error(`chunks from another timeline (total ${meta.total}, chunk ${meta.chunk}): delete ${dir}`); process.exit(1); }
+if (!meta) fs.writeFileSync(metaF, JSON.stringify({ total, chunk }));
 const tmp = path.resolve(process.env.REMOTION_TMP);
 fs.mkdirSync(tmp, { recursive: true });
 const env = { ...process.env, TEMP: tmp, TMP: tmp };

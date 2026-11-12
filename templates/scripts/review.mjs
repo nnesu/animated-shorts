@@ -3,6 +3,7 @@
 //   node scripts/review.mjs <name> [--port 5177] [--video <path>] [--force]   start the player (http://127.0.0.1:<port>)
 //   node scripts/review.mjs <name> --dump                                     open notes, one line each, plus --redo ranges
 //   node scripts/review.mjs <name> --resolve c_001,c_004                      mark notes resolved
+//   node scripts/review.mjs <name> --wait-submit                              block until the user presses Submit, then print the notes (run in background; no port)
 //   node scripts/review.mjs --selftest                                        asserts, exit 0 or 1
 // Reads out/<name>/shots.json (bridge_shots.py: fps, total, shots, xfade). Notes: out/<name>/comments.json. Node built-ins + ffprobe only.
 import http from "node:http";
@@ -42,6 +43,9 @@ export const newId = (db) => `c_${String(db.next).padStart(3, "0")}`;
 /** optional highlight: [x, y, w, h] as fractions of the frame (0-1) */
 export const okBox = (b) => b === undefined || (Array.isArray(b) && b.length === 4 && b.every((n) => typeof n === "number" && n >= 0 && n <= 1) && b[0] + b[2] <= 1.001 && b[1] + b[3] <= 1.001);
 
+/** what a Submit means: the agent's wake line */
+export const submitLine = (db) => { const n = db.comments.filter((c) => !c.resolved).length; return n ? `submit: ${n} notes` : "submit: approved"; };
+
 const fail = (msg) => { console.error(msg); process.exit(1); };
 const files = (name) => { const d = path.join("out", name); return { dir: d, shots: path.join(d, "shots.json"), notes: path.join(d, "comments.json") }; };
 const loadMeta = (name) => {
@@ -68,6 +72,7 @@ function selftest() {
   ok(R("bytes=0-") === "[0,999]", "r0"); ok(R("bytes=100-199") === "[100,199]", "r1"); ok(R("bytes=0-5000") === "[0,999]", "r2");
   ok(R("bytes=1000-") === '"416"', "r3"); ok(R("bytes=abc") === '"416"', "r4"); ok(parseRange(undefined, 1000) === null, "r5");
   ok(shotOf(meta, 119).id === 1 && shotOf(meta, 120).id === 2, "shot lookup");
+  ok(submitLine({ comments: [] }) === "submit: approved" && submitLine({ comments: [{ resolved: true }, { resolved: false }] }) === "submit: 1 notes", "submit line");
   ok(okBox(undefined) && okBox([0.1, 0.2, 0.3, 0.4]) && !okBox([0.8, 0, 0.5, 0.1]) && !okBox([0, 0, 1]) && !okBox("x"), "box check");
   console.log(process.exitCode ? "selftest FAILED" : "selftest ok");
 }
@@ -84,6 +89,19 @@ function dump(name) {
   let line = `open ${open.length} | ` + (pic.length ? "--redo " + pic.map(([a, b]) => `${a}-${b}`).join(",") : "no picture re-render");
   if (timing.length) line += ` | timing notes: re-time, then re-render from shot ${Math.min(...timing.map((c) => c.shot))}`;
   console.log(line);
+}
+
+/** poll for out/<name>/submit.json (written by the player's Submit button); consume it, print the notes, exit 0 */
+function waitSubmit(name) {
+  const f = path.join(files(name).dir, "submit.json");
+  setInterval(() => {
+    if (!fs.existsSync(f)) return;
+    fs.rmSync(f, { force: true });
+    const db = readDb(files(name).notes), line = submitLine(db);
+    console.log(line);
+    if (line !== "submit: approved") dump(name);
+    process.exit(0);
+  }, 2000);
 }
 
 function resolve(name, ids) {
@@ -119,6 +137,11 @@ function serve(name, port, video, force) {
       }
       if (req.method === "GET" && url.pathname === "/api/meta") return send(res, 200, { name, fps: meta.fps, total: meta.total, shots: meta.shots, xfade: meta.xfade || [] });
       if (req.method === "GET" && url.pathname === "/api/comments") return send(res, 200, readDb(notes).comments);
+      if (req.method === "POST" && url.pathname === "/api/submit") { // the agent's --wait-submit picks this up
+        if (!hostOk(req)) return send(res, 403, { error: "forbidden" });
+        fs.writeFileSync(path.join(files(name).dir, "submit.json"), JSON.stringify({ at: new Date().toISOString() }));
+        return send(res, 200, { ok: true });
+      }
       const m = /^\/api\/comments(?:\/(c_\d+))?$/.exec(url.pathname);
       if (!m || !["POST", "PATCH", "DELETE"].includes(req.method)) return send(res, 404, { error: "not found" });
       if (!hostOk(req)) return send(res, 403, { error: "forbidden" });
@@ -146,7 +169,8 @@ function serve(name, port, video, force) {
 const args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(k); return i < 0 ? undefined : args[i + 1]; };
 if (args[0] === "--selftest") selftest();
-else if (!args[0] || args[0].startsWith("--")) fail("usage: node scripts/review.mjs <name> [--port 5177] [--video <path>] [--force] | <name> --dump | <name> --resolve c_001,c_002 | --selftest");
+else if (!args[0] || args[0].startsWith("--")) fail("usage: node scripts/review.mjs <name> [--port 5177] [--video <path>] [--force] | <name> --dump | <name> --resolve c_001,c_002 | <name> --wait-submit | --selftest");
 else if (args.includes("--dump")) dump(args[0]);
+else if (args.includes("--wait-submit")) waitSubmit(args[0]);
 else if (args.includes("--resolve")) resolve(args[0], (opt("--resolve") || "").split(",").filter(Boolean));
 else serve(args[0], +(opt("--port") || 5177), opt("--video") || path.join("out", args[0], "video_final.mp4"), args.includes("--force"));

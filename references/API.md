@@ -16,7 +16,7 @@ Read this instead of the source. The four starter files hold only story data (ab
 - `dolly(pos, look, k, { fov, roll })` moves the camera toward `look`; `zoom(pos, look, fov, k)` narrows the lens (wides). `k = pushK(f, f0, rate, punch?, n?)`: creep per frame from frame `f0` (rate 0.0015-0.003; punch 0.006-0.007 over `n` frames on a punch word). Roll 0.03 rad.
 - `at(SET, x, y, z)` = set-local coordinates. `KICKS`: `[time s, strength 0.25-0.5]`. Also exported: `smooth`, `easeOut`, `clamp01`, `FPS`.
 - `DOF_V2`: `{ f, cInf, focus: () => V3 }`, one per camera key. `cInf` = background blur in px at 1080: wides 3-5, mid shots 8-14, close-ups 18-24, macro 24-28.
-- `bridge_shots.py` parses this file by regex: keep the `sh(n, a, b,` form, `XFADE = { id: frames }`, `FLASH_AT = n`, `const KICKS ... = [...]`, `{ f: n, cut: true`.
+- `bridge_shots.py` parses this file by regex: keep the `sh(n, a, b` form, `XFADE = { id: frames }`, `FLASH_AT = n`, `const KICKS ... = [...]` (entries: seconds, a CONST or `frame / FPS`), `{ f: n, cut: true`. It exits 1 on a shot or kick it cannot read.
 
 ## world.ts (engine: `shared/worldkit.ts`, `shared/build.ts`)
 - The class extends `WorldBase`. In the constructor, after `super(...)`: add sets to `b` (the static batch) or `R` (own objects), then `this.finish()` last. Given for free: sky, lights, clouds, the town, harbour and water, per-shot sun, sight-line cull, the character loop.

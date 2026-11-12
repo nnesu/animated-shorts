@@ -3,7 +3,9 @@
 import json, re, sys
 src = open(sys.argv[1] if len(sys.argv) > 1 else "src/videos/bridge/story.ts", encoding="utf-8").read()
 shots = [{"id": int(i), "a": int(a), "b": int(b) if b != "TOTAL" else int(re.search(r"TOTAL = (\d+)", src).group(1))}
-         for i, a, b in re.findall(r"(?:\{ id: |\bsh\()(\d+), (?:a: )?(\d+), (?:b: )?(\w+),", src)]
+         for i, a, b in re.findall(r"(?:\{ id: |\bsh\()(\d+), (?:a: )?(\d+), (?:b: )?(\w+)[,)]", src)]
+# fail loud on entries the regexes cannot read (e.g. `467 / 30`): they were silently mis-parsed before
+if len(shots) != len(re.findall(r"^\s*(?:sh\(|\{ id: \d)", src, re.M)): sys.exit("story.ts: every sh(id, a, b, ...) needs numeric literals for id, a, b (b may be TOTAL)")
 xf = {int(k): int(v) for k, v in re.findall(r"(\d+): (\d+)", re.search(r"XFADE[^=]*= \{([^}]*)\}", src).group(1))}
 flash = int(re.search(r"FLASH_AT = (\d+)", src).group(1))
 xfade = [[s["a"] - xf[s["id"]] // 2, s["a"] + xf[s["id"]] // 2] for s in shots if s["id"] in xf]
@@ -13,8 +15,10 @@ consts = {k: float(v) for k, v in re.findall(r"\b([A-Z]\w*) = (\d+(?:\.\d+)?)\b"
 kicks = []
 m = re.search(r"const KICKS[^=]*= \[(.*?)\];", src)
 if m:
-    for t0, _ in re.findall(r"\[([\w.]+), ([\d.]+)\]", m.group(1)):
-        f0 = round((consts[t0] if t0 in consts else float(t0)) * 30)
+    ks = re.findall(r"\[([\w.]+)( / (?:FPS|30))?, ([\d.]+)\]", m.group(1))  # seconds, CONST, or frame / FPS
+    if len(ks) != len(re.findall(r"\[[^\[\]]*\]", m.group(1))): sys.exit("story.ts: KICKS entries must be [seconds | CONST | frame / FPS, strength]")
+    for t0, per, _ in ks:
+        f0 = int(t0) if per else round((consts[t0] if t0 in consts else float(t0)) * 30)
         kicks.append([f0, f0 + 8])
 total = int(re.search(r"TOTAL = (\d+)", src).group(1))
 json.dump({"fps": 30, "total": total, "shots": shots, "xfade": xfade, "flash": [flash, flash + 4], "planned": cuts + kicks}, open(sys.argv[2] if len(sys.argv) > 2 else "out/bridge/shots.json", "w"), indent=1)

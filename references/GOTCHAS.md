@@ -6,9 +6,9 @@
 
 ## Voice
 - `words_whisper.py <wav> <json> [model=small]` writes `[{word, start, end}]` (faster-whisper, CPU). It decodes with ffmpeg and passes a numpy array, because faster-whisper's own decoder breaks with PyAV 19. Keep it that way.
-- Trim pauses by measured silence, never by Whisper timings (word ends drift into the pause). `voice_trim.py` cuts pauses over 0.5 s to 0.35 s and writes `voice_trim.json` with an offset table. Keep the raw take, run `words_whisper.py` on the trimmed file, listen once.
+- Trim pauses by measured silence, never by Whisper timings (word ends drift into the pause). `voice_trim.py` cuts pauses over 0.25 s and inner breath gaps of 0.3 s or more to 0.16 s and writes `voice_trim.json` with an offset table. Keep the raw take, run `words_whisper.py` on the trimmed file, listen once.
 - Timings as `word@frame`: `python -c "import json;print(' '.join(f\"{w['word'].strip()}@{round(w['start']*30)}\" for w in json.load(open('_voiceover/<name>/words.json'))))"`.
-- `voice_trim.py` refuses to overwrite an existing take (`--force` to re-trim) and prints `kept pauses`: uncut gaps of 0.3 s or more (silence or breath) as raw-take seconds. `words.json` is in trimmed time: a gap's trimmed time is raw minus the `shift` of the last `offsets` row in `voice_trim.json` whose `from` is at or before it; look up the words there. One inside a phrase: re-run with `--tight <raw seconds> --force` (cuts it to 0.1 s), then `words_whisper.py` again.
+- `voice_trim.py` refuses to overwrite an existing take (`--force` to re-trim). `words.json` is in trimmed time: a raw time maps to raw minus the `shift` of the last `offsets` row in `voice_trim.json` whose `from` is at or before it. A shorter gap inside a phrase: re-run with `--tight <raw seconds> --force` (cuts it to 0.1 s), then `words_whisper.py` again.
 
 ## Props and sets
 - Kenney pack without a download button: in the browser pane on kenney.nl run `fetch("https://kenney.nl/download-link/" + hex("assets/<slug>"))` (hex = each character as 2 hex digits). It returns a signed `.url`; curl that with a browser User-Agent.
@@ -26,10 +26,13 @@
 - Empty stands: `crowdBand()` on every tier.
 - Thin decor built from boxes (throne backs, drapes) does not read: paint it on a cut-out plane with `unlit(map, true)`.
 - No large flat-colour surface. A texture alone still reads as a plain wall: break it with trim, openings, wear and colour variation.
+- A hung or wall-mounted prop needs a visible mount (bracket, plank, rope).
 
 ## Framing and readability
 - Check every shot: subject fully in frame, nothing blocking the lens, close-up scale right (a person, not a giant).
 - Anything closer than about 2 m to a lens becomes a cut-off blob at the frame edge. Re-check nearby props whenever a camera moves.
+- 9:16 frame: horizontal half-width = distance x tan(vfov/2) x 0.5625 (about 0.23 m per metre at fov 44). Budget side-by-side subjects and held props against it.
+- A prop the narration names is in frame with the character; a shot introducing a prop shows where it sits (prop centred, surroundings visible).
 - A foreground prop must be recognisable or gone (a bush cut by the edge reads as a green ball).
 - Rails at chest height cut through characters: put the lens about 2.5 m up so rails cross legs.
 - A swing drawn with one rope reads as a hanging: two ropes to a wide plank (`swingKid` in `toon.ts`) and an A-frame whose legs clear the arc.
