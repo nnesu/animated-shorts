@@ -92,10 +92,13 @@ def spans(vf, key):  # [(start s, end s)] of blackdetect / freezedetect events o
 pf = lambda sp: [f for a, b in sp for f in range(int(a * fps), int(round(b * fps)))]
 black = spans("blackdetect=d=0.06:pix_th=0.10", "black")
 white = [sp for sp in spans("negate,blackdetect=d=0.06:pix_th=0.10", "black") if not set(pf([sp])) <= planned]
-freeze = spans(f"freezedetect=n=0.003:d={12 / fps:.3f}", "freeze")
+# static holds between fill-in pans are near-still on purpose: report them; only identical frames (a stalled render) fail
+held = spans(f"freezedetect=n=0.003:d={12 / fps:.3f}", "freeze")
+freeze = spans(f"freezedetect=n=0.0002:d={12 / fps:.3f}", "freeze")
 check(bool(black), f"black spans (s) {black[:10]}")
 check(bool(white), f"unplanned white spans (s) {white[:10]}")
-check(bool(freeze), f"frozen spans >= 12 f (s) {freeze[:10]}")
+check(bool(freeze), f"identical-frame spans >= 12 f (s) {freeze[:10]}")
+R.append(f"HELD spans >= 12 f (static holds, expected; check none is a stall) (s) {held[:10]}")
 if np is None:
     R.append("PER-FRAME stats and sheets skipped (no numpy)")
     done()

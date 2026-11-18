@@ -1,4 +1,5 @@
 # the reference channel style bible (study of latest 20 shorts, 2026-10-30)
+Read almost never: study material measured from another channel; open only to revise a house value or a script rule.
 Study notes. Videos: vids/ (720p, original EN audio), transcripts: tx/, per-video measurements: measure/summary.json,
 30 fps contact sheets: measure/<video>_sheets/ (each sheet = 2 s, 60 frames).
 

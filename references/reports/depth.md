@@ -1,4 +1,5 @@
 # Depth cues, glow and framing: reference vs ours
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 Study. Only general rules and numbers are taken from the 20 reference videos: no traced shots, characters or props.
 Working folder: `references/depth/` (scripts, data, crops).

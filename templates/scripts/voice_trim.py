@@ -1,11 +1,11 @@
 # Trims long pauses in a voice take by MEASURED silence (never by Whisper word timings). The raw file is never changed.
 # RMS in 10 ms windows; noise floor = 10th-percentile RMS; silence = below floor + 6 dB. Every silent run longer than
-# 0.25 s is cut to 0.16 s around its centre with a 15 ms crossfade; every inner breath gap (quiet, not silent) of 0.3 s
-# or more is cut to 0.16 s too. A cut never comes within 40 ms of a speech window.
+# 0.2 s is cut to 0.2 s around its centre with a 15 ms crossfade; every inner breath gap (quiet, not silent) of 0.3 s
+# or more is cut to 0.2 s too. A cut never comes within 40 ms of a speech window.
 # Writes <out.wav> (mono, raw sample rate, 16-bit) and voice_trim.json next to it: raw and cut length, noise floor, each
 # cut's start/end/removed (raw seconds) and a cumulative offset table: new_t = raw_t - shift of the last row with
 # raw_t >= its "from". Easiest after a trim: re-run words_whisper.py on the cut file; the table is for shifting old timings.
-# Usage: python scripts/voice_trim.py <raw.wav> <out.wav> [max_pause=0.25] [keep_pause=0.16] [--tight t1,t2] [--force]
+# Usage: python scripts/voice_trim.py <raw.wav> <out.wav> [max_pause=0.2] [keep_pause=0.2] [--tight t1,t2] [--force]
 # --force: overwrite an existing <out.wav>. --tight: raw-take times of shorter pauses inside a phrase, cut to 0.1 s.
 # Needs ffmpeg + numpy.
 import json, os, subprocess, sys, wave
@@ -19,15 +19,15 @@ if "--tight" in sys.argv:
     TIGHT = [float(t) for t in sys.argv[k + 1].split(",")]; del sys.argv[k:k + 2]
 sys.argv = [a for a in sys.argv if a != "--force"]
 if len(sys.argv) < 3:
-    sys.exit("usage: python scripts/voice_trim.py <raw.wav> <out.wav> [max_pause=0.25] [keep_pause=0.16] [--tight t1,t2] [--force]")
+    sys.exit("usage: python scripts/voice_trim.py <raw.wav> <out.wav> [max_pause=0.2] [keep_pause=0.2] [--tight t1,t2] [--force]")
 RAW, OUT = sys.argv[1], sys.argv[2]
-MAX_PAUSE = float(sys.argv[3]) if len(sys.argv) > 3 else 0.25
-KEEP = float(sys.argv[4]) if len(sys.argv) > 4 else 0.16
+MAX_PAUSE = float(sys.argv[3]) if len(sys.argv) > 3 else 0.2
+KEEP = float(sys.argv[4]) if len(sys.argv) > 4 else 0.2
 WIN, GUARD, XF = 0.010, 0.040, 0.015
 if os.path.abspath(RAW) == os.path.abspath(OUT):
     sys.exit("out must differ from raw: the raw take is kept")
 if os.path.exists(OUT) and not FORCE:
-    sys.exit(f"{OUT} exists (another short's take?). Each short keeps its take in _voiceover/<name>/. Re-trim on purpose: add --force")
+    sys.exit(f"{OUT} exists (another short's take?). Each short keeps its take in voiceover/<name>/. Re-trim on purpose: add --force")
 
 sr = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate", "-of", "csv=p=0", RAW],
                         capture_output=True, text=True, check=True).stdout.strip().rstrip(","))

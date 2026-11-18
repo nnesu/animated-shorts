@@ -1,39 +1,37 @@
 // STARTER timeline: data only. The camera engine is shared/camkit.ts. Shots are timed to the voice (word@frame listing of
-// _voiceover/<name>/words.json). Everything marked EXAMPLE is a 2-shot demo (street wide, interior two-shot + close-up): replace it.
-// Sets live far apart in one world: the town + harbour at the origin, every other set 100+ m away.
-import { at, dolly, zoom, pushK, sh, makeTimeline, V3, Key, Dof, ShotDef } from "../../shared/camkit";
+// voiceover/<name>/words.json). Everything marked EXAMPLE is a demo: replace it.
+// Pan first: one take per area (chain: still holds joined by story moves, fill-in pans in quiet gaps): along the lane,
+// through a door, from room to room. Hard cut only for another place or time. EXAMPLE: one take: lane hold, through the
+// door of house 21, hold at the table, through the inner doorway into house 27 (the lab), hold. Rules: references/LOOK.md.
+import { sh, makeTimeline, chain, View, Key, Dof, ShotDef } from "../../shared/camkit";
 
-export const TOTAL = 240; // EXAMPLE. = ceil(voice seconds x 30): short_qa wants video = voice within 1 frame
-
-// ---------------- sets ----------------
-export const ROOM: V3 = [300, 0, 40]; // EXAMPLE interior
-
-// ---------------- story physics: prop motion as pure functions of tau (story time, s) goes here ----------------
+export const TOTAL = 360; // EXAMPLE. = ceil(voice seconds x 30): short_qa wants video = voice within 1 frame
 
 // ---------------- shots: sh(id, firstFrame, endFrame, light, crowd, tau?, near?) ----------------
-export type Crowd = "none" | "street" | "room"; // one name per staging in cast.ts stage()
+// numeric literals for id / first / end frame (end may be TOTAL), FLASH_AT and cut keys: bridge_shots.py reads them by regex
+// time-lapse inside a long take: { ...sh(...), tod: (t) => 0 day .. 1 golden .. 2 night }
+export type Crowd = "lane";
 export const SHOTS: ShotDef<Crowd>[] = [
-  sh(1, 0, 120, "day", "street"),                 // EXAMPLE hook: the street
-  sh(2, 120, TOTAL, "golden", "room", undefined, 0.05), // EXAMPLE interior two-shot (near plane 0.05 for close work)
+  sh(1, 0, TOTAL, "day", "lane"), // EXAMPLE: the whole demo is one long take
 ];
-export const XFADE: Record<number, number> = { 2: 8 }; // shot id -> crossfade frames INTO it (place changes); others hard-cut
-export const FLASH_AT = 120; // the hook ends on a 4-frame white flash (no flash: a frame past TOTAL)
+export const XFADE: Record<number, number> = {}; // shot id -> crossfade frames INTO it; others hard-cut
+export const FLASH_AT = 361; // a 4-frame white flash at this frame (none: a frame past TOTAL)
 
-// ---------------- camera: every hold creeps (pushK); cut: true = hard cut, else a glide of dur frames ----------------
-const CAMS: Record<number, Key[]> = {
-  1: [{ f: 0, s: (f) => zoom([3, 2.2, 40], [0, 1.6, 60], 46, pushK(f, 0, 0.002)) }], // EXAMPLE wide: zoom creep
-  2: [
-    { f: 120, s: (f) => dolly(at(ROOM, 0.2, 1.4, 3.9), at(ROOM, 0.0, 1.0, -0.45), pushK(f, 120, 0.0025), { fov: 47 }) }, // EXAMPLE two-shot: dolly creep
-    { f: 185, cut: true, s: (f) => dolly(at(ROOM, -0.3, 1.75, 1.7), at(ROOM, -0.6, 1.3, -0.5), pushK(f, 185, 0.003, 0.007, 30), { fov: 38, roll: 0.03 }) }, // EXAMPLE cut to a close-up with a punch-in
-  ],
-};
+// ---------------- camera ----------------
+// chain(start, end, first view, stops): each stop = [move start, move end, view, via?]; via = inner bezier points for a
+// path through a door. View = { C: camera, L: look target, fov }.
+// Doors: lane door of house 21 at (-4.4, 21); inner doorway between houses 21 and 27 at (-7.7, 24).
+const LANE: View = { C: [2.0, 1.6, 13.4], L: [-2.0, 1.3, 20.2], fov: 50 };   // EXAMPLE
+const TABLE: View = { C: [-5.0, 1.6, 21], L: [-8.6, 1.15, 21], fov: 56 };
+const LAB: View = { C: [-7.7, 1.55, 24.6], L: [-7.7, 1.2, 28.5], fov: 56 };
+const TAKE = chain(0, TOTAL, LANE, [
+  [70, 150, TABLE, { C: [[1.2, 1.6, 21], [-2.6, 1.55, 21]], L: [[-4.4, 1.4, 21], [-8, 1.3, 21]] }],
+  [200, 270, LAB, { C: [[-6.4, 1.6, 21.9], [-7.7, 1.55, 22.6]], L: [[-8.4, 1.4, 23.6], [-7.7, 1.3, 26.5]] }],
+]);
+const CAMS: Record<number, Key[]> = { 1: [{ f: 0, s: TAKE.s }] };
 const KICKS: [number, number][] = []; // impact kicks: [time s, strength 0.25-0.5]
 
 // ---------------- lens: one entry per camera key ----------------
-export const DOF_V2: Dof[] = [
-  { f: 0, cInf: 4, focus: () => [0, 1.5, 60] },                    // EXAMPLE 1 wide: nearly sharp
-  { f: 120, cInf: 14, focus: () => at(ROOM, 0.05, 1.1, -0.4) },    // EXAMPLE 2a two-shot
-  { f: 185, cInf: 24, focus: () => at(ROOM, -0.6, 1.0, -0.45) },   // EXAMPLE 2b close-up
-];
+export const DOF_V2: Dof[] = [{ f: 0, cInf: 10, focus: TAKE.look }]; // focus follows the look target
 
 export const { shotAt, layersAt, kickAt, camAt, dofAt } = makeTimeline({ SHOTS, XFADE, CAMS, KICKS, DOF: DOF_V2 });

@@ -1,4 +1,5 @@
 # Outlines (black ink lines on the 3D world): reference vs ours
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 Work folder: `references/outlines/` (scripts, crops, sheets, results, recipe, toy test harness).
 Study. Nothing under `your Remotion project` was edited; no new stills were rendered.

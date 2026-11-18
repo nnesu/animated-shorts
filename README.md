@@ -1,17 +1,16 @@
 # Claude Animated Shorts
 
-A Claude Code skill that turns a short true story into a finished vertical video (1080x1920, about 40-90 s): flat 2D cartoon characters in a painted 3D world, narrated, with sound effects and scene music. Claude researches the facts, writes the script, plans and builds every shot in three.js inside Remotion, checks stills, renders on your PC and mixes the audio. You approve the script and the stills, then review the final in a frame-accurate player; no AI video generator is used.
+A Claude Code skill that turns a short true story into a finished vertical video (1080x1920, about 40-90 s): 3D cartoon characters in a painted 3D world, narrated, with sound effects and scene music. Claude researches the facts, writes the script, plans and builds every shot in three.js inside Remotion, checks stills, renders on your PC and mixes the audio. You approve the script and the stills, then review the final in a frame-accurate player; no AI video generator is used.
 
 ## What's inside
 | Path | What it is |
 |---|---|
-| `SKILL.md` | The skill: the rules and the 12-step pipeline; details live in `references/` |
+| `SKILL.md` | The skill: a "where to look" map, the rules and the 12-step pipeline; details live in `references/` |
 | `MAINTAINING.md` | For whoever changes the skill: map, fixed rules, safe-change procedures |
-| `IMPROVEMENT_PLAN.md` | The latest round of skill changes, written for an AI reader: what changed and why |
-| `templates/starter/` | Four small per-video files (story, world, cast, composition) holding only story data, with a 2-shot demo |
+| `templates/starter/` | Four small per-video files (story, world, cast, composition) holding only story data, with a one-take demo (lane, into a house, room to room) built with `chain()` |
 | `templates/SCRIPT_example.md` | The narration script layout (format only; length follows the story) |
 | `templates/sandbox_index_example.tsx` | Entry file for test renders when changing the engine |
-| `templates/shared/` | The engine: camera, world, character cards, post chain, look code |
+| `templates/shared/` | The engine: camera (one take per area, fill-in pans), world (Quaternius lane and rooms), 3D characters, 2D overlays, post chain, look code |
 | `templates/audio/` | `build_mix.py`: the ffmpeg mix of voice + free CC0 samples + optional scene-based music cues (`music_cues.py`, template `music_example.py`, numpy only; never a continuous track) to -15 LUFS |
 | `templates/scripts/` | Stills, side-by-side sheets, shot merge, word timings (faster-whisper), voice pause trimming, resumable chunked render, frame-by-frame + pass/fail QA, scene-geometry QA, skill/live sync check, stills diff for patch renders, frame-accurate review player (Submit wakes the agent) |
 | `references/STYLE_BIBLE.md` | The script and visual formula measured from 20 reference shorts |
@@ -23,7 +22,7 @@ A Claude Code skill that turns a short true story into a finished vertical video
 ## Install
 1. Copy this folder to `~/.claude/skills/cartoon-3d-short/` (clone it there, or download the ZIP).
 2. You need a [Remotion](https://www.remotion.dev/) project with `@remotion/three` and three.js, plus Node, ffmpeg, and Python 3 with `numpy` and `faster-whisper`. Claude copies the engine (`templates/shared/`) and scripts (`templates/scripts/`) into the project on the first short.
-3. 3D props are free CC0 [Kenney](https://kenney.nl/) packs, unpacked into `public/kenney/<pack>/` with an `INDEX.txt`; Claude fetches any pack a story needs.
+3. 3D models are free CC0 Quaternius packs in `public/models/<pack>/`, listed in `INDEX.txt` with sources in `SOURCES.md`; the cast is baked from the Quaternius characters into `public/models/chars3d/` (`scripts/bake_cast.mjs`, needs Blender). Claude fetches any CC0 pack a story needs.
 4. You record the narration yourself (any TTS or your own voice) when Claude asks for it.
 5. In Claude Code, say: *"Use the cartoon short skill and make a short about …"*.
 
@@ -35,7 +34,7 @@ After the final render passes QA, Claude opens a frame-accurate review player in
 ## Notes
 - Set `REMOTION_TMP` to a folder on a drive with space (this skill uses `C:/remotion-tmp`). Every Remotion bundle copies `public/` (~1.3 GB) into it; Claude deletes a short's bundles after delivery.
 - Fixes re-render only the changed chunks of the video, not the whole render.
-- Voice pauses are trimmed tight by default (pauses and breath gaps cut to 0.16 s).
+- Voice pauses are trimmed to about 0.2 s by default.
 - Story, characters and voice should always be your own. Use the references for the look, not the content.
 
 ## License

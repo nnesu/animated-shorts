@@ -15,9 +15,10 @@ import { BlendFunction, BloomEffect, ToneMappingEffect, ToneMappingMode } from "
 import { InkPass, noInkFallback } from "./ink";
 import { LensBlur, GrainEffect } from "./lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "./grade";
+import { lightAt } from "./lights";
 import { Kit } from "./build";
 import { qaDump } from "./qadump";
-import { Cam, ShotDef, V3 } from "./camkit";
+import { Cam, ShotDef, V3, FPS } from "./camkit";
 import { WorldBase } from "./worldkit";
 
 export type ShortCfg = {
@@ -47,7 +48,7 @@ const makeBloom = () => {
   return b;
 };
 
-const fwd = new THREE.Vector3(), fpt = new THREE.Vector3(), tmpv = new THREE.Vector3();
+const fwd = new THREE.Vector3(), fpt = new THREE.Vector3();
 
 export const makeShort = (cfg: ShortCfg): React.FC => {
   const { World, loadKit, poolShots: POOL_SHOTS = [], houseLook: LOOK_V3 = true } = cfg;
@@ -68,7 +69,7 @@ export const makeShort = (cfg: ShortCfg): React.FC => {
     const on = useMemo(toggles, []);
     const dbg = useMemo(() => !!(getInputProps() as { post?: { dofDebug?: boolean } }).post?.dofDebug, []);
     const fx = useMemo(() => ({
-      ink: new InkPass(scene, camera as THREE.PerspectiveCamera, LOOK_V3 ? { color: "#2a1a2e", widthNear: 7.0, widthFar: 4.6 } : {}), // order 4: heavier world ink
+      ink: new InkPass(scene, camera as THREE.PerspectiveCamera, LOOK_V3 ? { color: "#2a1a2e", widthNear: 2.2, widthFar: 2.2, creaseScale: 1 } : {}), // order 4: one thin line weight everywhere (user 2026-11-17: one weight, 2.2 px after trying 3.5, 0.88, 1.75)
       lens: new LensBlur(dofIsV2() ? { maxCoC: 32, nearScale: 1.2, nearMax: 6 } : { maxCoC: 24, nearScale: 1.2 }), // v2: foreground blur capped at 6 px
       bloom: makeBloom(),
       tone: new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL }),
@@ -97,14 +98,9 @@ export const makeShort = (cfg: ShortCfg): React.FC => {
     fx.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
     fx.lens.cInf = d.cInf;
     if ((getInputProps() as { post?: { qaDump?: boolean } }).post?.qaDump) qaDump({ id, f, cam, root: world.root, coc: (dd: number) => d.cInf * (1 - fx.lens.main.focus / Math.max(dd, 1e-3)) });
-    if (dbg) { // inputProps {"post":{"dofDebug":true}}: which things are sharp / background / foreground (CoC px at 1080 wide)
-      const dist = (p: number[]) => tmpv.set(p[0], p[1], p[2]).sub(cam.position).dot(fwd);
-      const coc = (dd: number) => { const c = d.cInf * (1 - fx.lens.main.focus / Math.max(dd, 1e-3)); return Math.round(c < 0 ? c * 1.2 : c); };
-      const lm: [string, number[]][] = [];
-      world.debugPlaces.slice(0, 6).forEach((p, i) => lm.push(["char" + i, p]));
-      console.warn("DOFDBG " + JSON.stringify({ id, f, focus: +fx.lens.main.focus.toFixed(1), cInf: +d.cInf.toFixed(1), obj: lm.map(([n, p]) => [n, +dist(p).toFixed(1), coc(dist(p))]) }));
-    }
-    gradeFor(fx.grade, SHOTS[id - 1].light);
+    if (dbg) console.warn("DOFDBG " + JSON.stringify({ id, f, focus: +fx.lens.main.focus.toFixed(1), cInf: +d.cInf.toFixed(1) })); // inputProps {"post":{"dofDebug":true}}
+    const sd = SHOTS[id - 1], td = sd.tod && lightAt(sd.tod(f / FPS));
+    if (td) gradeFor(fx.grade, td.a, td.b, td.w); else gradeFor(fx.grade, sd.light);
     fx.grain.seed = f; // deterministic per frame
     return (
       <>

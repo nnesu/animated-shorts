@@ -14,7 +14,7 @@ timing, sound or story. Do not read any source files.
 
 HOUSE STYLE (intended; never penalize, never suggest changing): plum world ink about 5-7 px; depth of field on every shot
 (background blur up to ~28 px); vignette and a warm highlight tint; one saturated hero colour against a blue sky, the rest
-muted; flat cartoon character cards with plum outlines. <one line: this video's hero object and how it is lit>
+muted; 3D cartoon characters with painted faces and thin plum outlines. <one line: this video's hero object and how it is lit>
 
 CRAFT AREAS (only these): line cleanliness, light modelling, depth layering, silhouette/composition, texture scale,
 character finish.

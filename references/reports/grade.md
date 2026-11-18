@@ -1,4 +1,5 @@
 # Grade: colour and tone, reference vs ours
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 Folder: `references/grade/`. Scripts are in `scripts/`, data in `data/`, images in `out/`.
 

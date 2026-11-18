@@ -1,7 +1,7 @@
 // Stylised two-tone lighting for every world material (lighting.md 9.2, world part): albedo x mix(shadeCol, litCol,
 // sunTerm), sunTerm = real shadow-map visibility x a soft N.L terminator. The sun visibility is captured inside three's
-// own light loop (LFB), so nothing is computed twice. Character cards (cardShade) live in the CHAR agent's file and
-// can import LFB / CHAR from here; world.ts sets every uniform below once per frame from LIGHTS.
+// own light loop (LFB), so nothing is computed twice. world.ts sets every uniform
+// below once per frame from LIGHTS.
 import * as THREE from "three";
 
 export const TONE = {
@@ -10,19 +10,15 @@ export const TONE = {
   uBounce: { value: new THREE.Vector3() }, // warm bounce on shaded faces turned to the camera (golden only; day = 0)
   uSat: { value: 1 }, // world albedo saturation around its luminance (characters are not twoTone, so unaffected)
 };
-/** character-card uniforms (lighting.md 9.2 cardShade); world.ts keeps them in sync with LIGHTS for cardshade.ts */
-export const CHAR = {
-  uCharTint: { value: new THREE.Vector3(1, 0.94, 0.92) }, uCharShade: { value: 0.86 }, uGrad: { value: 0.07 },
-  uBodyGrad: { value: 0.2 }, uSideTint: { value: new THREE.Vector3(0.92, 0.9, 0.96) },
-};
-
 // directional light 0 = the sun = the only shadow caster (three sorts shadow-casting lights first). Only the
 // UNROLLED index 0 compiles the shadow block, so sunVis is written once.
 export const LFB = THREE.ShaderChunk.lights_fragment_begin
   .replace("directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ]",
     "sunVis = ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ]")
-  .replace("vDirectionalShadowCoord[ i ] ) : 1.0;", "vDirectionalShadowCoord[ i ] ) : 1.0;\n\t\tdirectLight.color *= sunVis;");
-if (!LFB.includes("directLight.color *= sunVis")) throw new Error("shade.ts: three lights_fragment_begin changed");
+  .replace("vDirectionalShadowCoord[ i ] ) : 1.0;", "vDirectionalShadowCoord[ i ] ) : 1.0;\n\t\tdirectLight.color *= sunVis;")
+  // point / spot lights (lamps, candles, window light) run first: keep their sum, the two-tone pass adds it back
+  .replace("#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )", "vec3 localDiffuse = reflectedLight.directDiffuse;\n#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )");
+if (!LFB.includes("directLight.color *= sunVis") || !LFB.includes("vec3 localDiffuse")) throw new Error("shade.ts: three lights_fragment_begin changed");
 
 const TWO_TONE = /* glsl */ `
 #if NUM_DIR_LIGHTS > 0
@@ -35,24 +31,26 @@ const TWO_TONE = /* glsl */ `
   vec3 lit = uLitCol * mix( 1.0, ndl, uLambert );                             // keep some cosine modelling
   float facing = max( dot( geometryNormal, geometryViewDir ), 0.0 );        // 1 = faces the lens
   vec3 alb = max( mix( vec3( dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) ), diffuseColor.rgb, uSat ), 0.0 );
-  reflectedLight.directDiffuse = alb * ( mix( uShadeCol, lit, sunTerm ) * skyK + uBounce * facing * clamp( 1.0 - dot( geometryNormal, upV ), 0.0, 1.0 ) * ( 1.0 - sunTerm ) )
-    + uShadeLift * LIFT_K * ( 1.0 - sunTerm );
+  reflectedLight.directDiffuse = alb * ( mix( uShadeCol * SHADE_K, lit, sunTerm ) * skyK + uBounce * facing * clamp( 1.0 - dot( geometryNormal, upV ), 0.0, 1.0 ) * ( 1.0 - sunTerm ) )
+    + uShadeLift * LIFT_K * SHADE_K * ( 1.0 - sunTerm ) + localDiffuse;
   reflectedLight.indirectDiffuse = vec3( 0.0 );                               // hemisphere/fill no longer used here
 }
 #endif
 `;
 const DECL = "#include <common>\nuniform vec3 uLitCol; uniform vec3 uShadeCol; uniform vec3 uShadeLift; uniform float uLambert; uniform float uSideK; uniform float uTerm; uniform vec3 uBounce; uniform float uSat;";
 
-/** Lambert (or Phong: its specular term is kept, masked by the shadow) -> two-tone. Call once per material. */
-export function twoTone<T extends THREE.MeshLambertMaterial | THREE.MeshPhongMaterial>(m: T, liftK = 1): T {
+/** Lambert (or Phong: its specular term is kept, masked by the shadow) -> two-tone. Call once per material.
+ *  shadeK scales the shade side: 1 outdoors, INDOOR_K inside rooms (no sky light there; windows and lamps light it). */
+export const INDOOR_K = 0.3;
+export function twoTone<T extends THREE.MeshLambertMaterial | THREE.MeshPhongMaterial>(m: T, liftK = 1, shadeK = 1): T {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, TONE);
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", DECL + `\n#define LIFT_K ${liftK.toFixed(3)}`)
+      .replace("#include <common>", DECL + `\n#define LIFT_K ${liftK.toFixed(3)}\n#define SHADE_K ${shadeK.toFixed(3)}`)
       .replace("#include <lights_fragment_begin>", "float sunVis = 1.0;\n" + LFB)
       .replace("#include <lights_fragment_end>", "#include <lights_fragment_end>\n" + TWO_TONE);
   };
-  m.customProgramCacheKey = () => "twoTone5_" + liftK.toFixed(3);
+  m.customProgramCacheKey = () => "twoTone6_" + liftK.toFixed(3) + "_" + shadeK.toFixed(3);
   return m;
 }
 

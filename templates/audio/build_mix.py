@@ -1,4 +1,4 @@
-"""Builds a short's sound mix: voice + FREE CC0 sound effects (see _sfx/LICENSES.md) + optional scene-based music cues.
+"""Builds a short's sound mix: voice + FREE CC0 sound effects (see sfx/LICENSES.md) + optional scene-based music cues.
 Usage (from the project root):
     python build_mix.py <voice.wav> <video_silent.mp4> <out dir> <events.json> [music.wav]
         -> <out dir>/mix.wav, <out dir>/music_ducked.wav (only with music) and <out dir>/video_final.mp4 (video copied, audio muxed)

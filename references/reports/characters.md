@@ -1,8 +1,11 @@
 # Characters: how the reference builds its 2D cast vs. our bridge cast
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 Study. Reference frames, crops and side-by-sides stay inside `references/characters/`.
 No files under `your Remotion project` were edited and no new stills were rendered. Our numbers come from `toon.ts` (read only) and from stills already in `your Remotion project/out/bridge/test/`.
 Only general construction rules were taken from the reference. None of its characters (chef, cowboy, potato-heads and so on) is copied.
+
+**Since this report, the code differs in three places (the code wins):** dot hands became ink hand shapes (fist / open / point) on near cards (`hand()` in `toon.ts`, gated by `Pen.lod`); front-view features slide 12u (eyes) / 13u (mouth) toward `facing` instead of 7u / 8u; 3/4 front views get the profile nose tick and are picked automatically by `viewOf().turn` in `castkit.ts`.
 
 **Short answer:** the user is right about the bodies, but the head diagnosis needs correcting.
 

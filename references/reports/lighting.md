@@ -1,4 +1,5 @@
 # Lighting: reference vs ours
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 This is a study. Numbers come from 67 reference study frames (20 videos, 720x1280, captions masked), 539
 frames taken every 2 s for the grade stats, and 36 of our stills (540x960, scaled to 720-wide equivalents where pixel

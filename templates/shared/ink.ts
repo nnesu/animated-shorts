@@ -50,7 +50,9 @@ const DEF: Required<InkOptions> = {
   // round 2 (reviewer: "world outlines ~1.5x thicker, pure black on every silhouette"): widths x1.5 (creases follow
   // via creaseScale), pure near-black, far opacity 0.75 -> 0.95; fog tint of the ink 0.6 -> 0.3 (compMat fogInk)
   color: "#030303", strength: 1.0,
-  widthNear: 5.1, widthFar: 3.3, distNear: 6, distFar: 90, creaseScale: 0.8, // round 3: creases 0.64 -> 0.8 (building corners)
+  // user 2026-11-17: one line weight everywhere (characters and world, near and far, silhouettes and creases), 75 % thinner
+  // than half the house look (7.0 px); short.tsx passes the same value
+  widthNear: 2.2, widthFar: 2.2, distNear: 6, distFar: 90, creaseScale: 1,
   depthLo: 0.01, depthHi: 0.03, angleLo: 35, angleHi: 50, concaveGain: 0.7, // depth jumps from 1 %; creases from 35 deg (roof eaves)
   farOpacity: 0.95, fadeNear: 150, fadeFar: 450,
 };
@@ -59,26 +61,31 @@ const FS_VERT = /* glsl */ `
 varying vec2 vUv;
 void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 
-// world-only normal pass (scene.overrideMaterial); works for Mesh and InstancedMesh. Cut-out materials
+// world-only normal pass (scene.overrideMaterial); works for Mesh, InstancedMesh and SkinnedMesh (posed, not bind pose). Cut-out materials
 // (map + alphaTest, e.g. the sign board, the church clock) keep their shape: see onBeforeRender in the constructor.
 const NORMAL_VERT = /* glsl */ `
 #include <common>
+#include <skinning_pars_vertex>
 uniform mat3 cutUv;
 varying vec3 vN;
 varying vec3 vV;
 varying vec2 vCut;
 void main() {
   #include <beginnormal_vertex>
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
   #include <defaultnormal_vertex>
   vN = transformedNormal;
   vCut = (cutUv * vec3(uv, 1.0)).xy;
   #include <begin_vertex>
+  #include <skinning_vertex>
   #include <project_vertex>
   vV = mvPosition.xyz;
 }`;
 const NORMAL_FRAG = /* glsl */ `
 uniform sampler2D tCut;
 uniform float cut;
+uniform float noCrease;
 varying vec3 vN;
 varying vec3 vV;
 varying vec2 vCut;
@@ -87,7 +94,7 @@ void main() {
   vec3 n;
   if (dot(vN, vN) < 1e-8) n = normalize(cross(dFdx(vV), dFdy(vV)));   // geometry without normals
   else n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0);            // back faces of double-sided planes
-  gl_FragColor = vec4(n, 1.0);
+  gl_FragColor = vec4(n, noCrease > 0.5 ? 0.75 : 1.0);           // alpha 0.75: outline only, no inner lines (skin)
 }`;
 
 const MASK_FRAG = /* glsl */ `
@@ -157,6 +164,7 @@ void main() {
   float w = mix(wNear, wFar, t) * pxScale;           // silhouette line width (output px) at this distance, near side only
   float hc = 0.5 * w * creaseScale;                  // crease line half width (px), drawn on both faces
   float Wc = 1.0 / zc;
+  if (nc.a < 0.9) hc = 0.0;                          // skin: outline only, never inner (crease) lines
   vec3 n0 = nc.xyz;
   vec3 P0 = viewPos(vUv, zc);
   float eD = 0.0, eN = 0.0;
@@ -260,7 +268,7 @@ export class InkPass extends Pass {
 
     this.normalMat = new THREE.ShaderMaterial({
       vertexShader: NORMAL_VERT, fragmentShader: NORMAL_FRAG, side: THREE.DoubleSide,
-      uniforms: { tCut: { value: null }, cut: { value: 0 }, cutUv: { value: new THREE.Matrix3() } },
+      uniforms: { tCut: { value: null }, cut: { value: 0 }, cutUv: { value: new THREE.Matrix3() }, noCrease: { value: 0 } },
     });
     // per object: copy the original material's cut-out (map + alphaTest) so alpha-tested world planes keep their shape
     this.normalMat.onBeforeRender = (_r, _s, _c, _g, object, group) => {
@@ -270,6 +278,7 @@ export class InkPass extends Pass {
       const u = this.normalMat.uniforms;
       const map = src && src.alphaTest > 0 ? src.map : null;
       u.tCut.value = map; u.cut.value = map ? src.alphaTest : 0;
+      u.noCrease.value = src?.userData?.inkNoCrease ? 1 : 0; // material.userData.inkNoCrease: outline only (character skin)
       if (map) { map.updateMatrix(); (u.cutUv.value as THREE.Matrix3).copy(map.matrix); }
       this.normalMat.uniformsNeedUpdate = true;
     };

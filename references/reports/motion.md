@@ -1,4 +1,5 @@
 # Motion: reference vs ours (camera grammar + character animation)
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 Units: **px = pixels at the reference size 720x1280** (multiply by 1.5 for our 1080x1920). **f** = frame at 30 fps.
 Reference = 20 shorts, 32,337 frames, burned-in caption band excluded from every camera measurement.

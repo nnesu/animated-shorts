@@ -8,7 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const argv = process.argv.slice(2), ri = argv.indexOf("--redo");
+const argv = process.argv.slice(2), di = argv.indexOf("--draft");
+// --draft: half size (540x960) review cut, only while revising; the final render never uses it (1080x1920)
+const draft = di >= 0; if (draft) argv.splice(di, 1);
+const ri = argv.indexOf("--redo");
 const redo = ri < 0 ? [] : argv.splice(ri, 2)[1].split(",").map((r) => r.split("-").map(Number));
 const [comp, out, totalArg, chunkArg = "300"] = argv;
 if (!comp || !out || !totalArg) { console.error("usage: REMOTION_TMP=<big drive>/remotion-tmp node scripts/render_chunks.mjs <Comp> <out.mp4> <totalFrames> [chunk=300]"); process.exit(2); }
@@ -46,10 +49,12 @@ for (let a = 0, i = 0; a < total; a += chunk, i++) {
     console.log(`chunk ${i} (${a}-${b}) attempt ${attempt}`);
     fs.rmSync(f, { force: true });
     const before = bundles();
+    const t0 = Date.now();
     const r = spawnSync("npx", ["remotion", "render", "src/index.ts", comp, f, "--codec", "h264", "--crf", "16", `--frames=${a}-${b}`, "--concurrency=1",
-      "--browser-executable", chrome, "--gl=angle", "--timeout", "180000", "--log=error"].map(q), { env, shell: true, stdio: "inherit" });
+      "--browser-executable", chrome, "--gl=angle", "--timeout", "180000", "--log=error", ...(draft ? ["--scale=0.5"] : [])].map(q), { env, shell: true, stdio: "inherit" });
     for (const d of bundles()) if (!before.has(d)) fs.rmSync(path.join(tmp, d), { recursive: true, force: true }); // only the bundle this chunk made
     ok = r.status === 0 && frames(f) === want;
+    if (ok) console.log(`chunk ${i} done: ${((Date.now() - t0) / 1000 / want).toFixed(2)} s/frame`);
     if (!ok) console.log(`chunk ${i} failed (exit ${r.status}), retrying`);
   }
   if (!ok) { console.error(`chunk ${i} failed 3 times: re-run this command to resume from here`); process.exit(1); }

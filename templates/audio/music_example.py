@@ -1,5 +1,6 @@
 """EXAMPLE (copied from the Slinky short): original scene cues synthesized with numpy only (scipy is not installed).
-Copy to _sfx/<name>_music.py and rename "slinky" (OUT, cues json name). Writes _sfx/music/slinky/c*.wav and _sfx/slinky_music_cues.json for music_cues.py.
+Its cue plan follows the old slinky beats; silences now go on the snap and the reveal (references/SOUND.md).
+Copy to sfx/<name>_music.py and rename "slinky" (OUT, cues json name). Writes sfx/music/slinky/c*.wav and sfx/slinky_music_cues.json for music_cues.py.
 Cue plan (times = voice seconds, story.ts shots): playful hook | warm wartime march | playful-tense walk with a falling
 step motif on each landing, hard stop before the snap | silence (snap) | warm home + Gimbels | festive rush, hard stop |
 silence (deadpan) | curious explanation + stadium lift | tense drop, resolves on "reaches" | proud state toy | warm end."""

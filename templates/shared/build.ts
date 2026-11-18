@@ -1,11 +1,11 @@
 // Static scenery: merged batches (one mesh per material), box-section strands rebuilt along a path every frame
-// (chains, rails), and the town on both banks: gabled houses with painted facades, church, mill + chimneys, quay,
-// hills and CC0 Kenney props (trees, lanterns, stalls, hedges).
+// (chains, rails), library props (prop / kitClone, centred by bounding box), coded house blocks and the Quaternius
+// house fronts and rooms (qHouseAt / qRoomAt).
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 const D0 = 0;
-import { brick, rng, ctex, rep, facadeHD, roofHD, stoneHD } from "./paint";
-import { twoTone } from "./shade";
+import { brick, rep, facadeHD, roofHD, stoneHD } from "./paint";
+import { twoTone, INDOOR_K } from "./shade";
 
 export type Kit = Record<string, THREE.Object3D>;
 export const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -33,14 +33,25 @@ const lamOf = new Map<string, THREE.MeshLambertMaterial>();
 const GREENS = ["#62ae4c", "#56a447", "#72b853"];
 const RECOLOR: Record<string, string> = { grass: "#6aab4f", leafsDark: "#4a9142", woodBark: "#8a5a3c", woodInner: "#e8cfa4", wood: "#a8724a",
   woodDark: "#7a4f33", dirt: "#8a6a4a", stone: "#b7b4ad" };
-/** Kenney GLB materials -> Lambert, so the whole world shares one lighting model */
+/** Quaternius kit textures are mid-grey: per-material multipliers (linear colour x map) into the house palette.
+ *  Glass ships transparent; the Lambert conversion makes it a solid house-blue pane instead. */
+const QTINT: Record<string, [number, number, number]> = {
+  MI_UnevenBrick: [1.5, 0.82, 0.62], MI_Brick: [1.4, 0.9, 0.75], MI_Plaster: [1.45, 1.42, 1.38], MI_WoodTrim: [1.15, 0.95, 0.8],
+  MI_WoodTrim_Wear: [1.15, 0.95, 0.8], MI_RoundTiles: [1.15, 1.0, 0.95], MI_RockTrim: [1.35, 1.3, 1.22], MI_WindowGlass: [0.22, 0.32, 0.52],
+  MI_Trim_Furniture: [1.2, 1.05, 0.9], MI_Trim_Metal: [1.1, 1.05, 1.0],
+};
+/** window glass materials: the world sets their emissive per frame (light preset glow) */
+export const GLASS: THREE.MeshLambertMaterial[] = [];
+/** library materials -> Lambert, so the whole world shares one lighting model; normal maps are kept (relief) */
 const toLambert = (m: THREE.Material) => {
   let l = lamOf.get(m.uuid);
   if (!l) {
-    const s = m as THREE.MeshStandardMaterial;
+    const s = m as THREE.MeshStandardMaterial, t = QTINT[m.name], glass = m.name === "MI_WindowGlass";
     const col = m.name === "leafsGreen" ? GREENS[lamOf.size % 3] : RECOLOR[m.name];
-    l = twoTone(new THREE.MeshLambertMaterial({ color: col ? new THREE.Color(col) : s.color?.clone() ?? new THREE.Color("#ffffff"), map: s.map ?? null, side: s.side, alphaTest: s.alphaTest }));
+    l = twoTone(new THREE.MeshLambertMaterial({ color: t ? new THREE.Color(t[0], t[1], t[2]) : col ? new THREE.Color(col) : s.color?.clone() ?? new THREE.Color("#ffffff"),
+      map: glass ? null : s.map ?? null, normalMap: s.normalMap ?? undefined, side: s.side, alphaTest: s.alphaTest }));
     lamOf.set(m.uuid, l);
+    if (glass) GLASS.push(l);
   }
   return l;
 };
@@ -85,9 +96,18 @@ export const boxGeo = (min: THREE.Vector3, max: THREE.Vector3, tile = 0, bottom 
 };
 
 /** collects pieces by material and merges them into one static mesh per material */
+/** indoor copies of world materials: darker shade side (shade.ts INDOOR_K), lit by window light and lamps instead */
+const indoorOf = new Map<string, THREE.Material>();
 export class Batch {
   private g = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  /** indoor = true: every material is swapped for its indoor copy (rooms) */
+  constructor(private indoor = false) {}
   add(geo: THREE.BufferGeometry, mat: THREE.Material, m?: THREE.Matrix4) {
+    if (this.indoor) {
+      let im = indoorOf.get(mat.uuid);
+      if (!im) { im = twoTone((mat as THREE.MeshLambertMaterial).clone(), 1, INDOOR_K); im.userData = { ...mat.userData }; indoorOf.set(mat.uuid, im); }
+      mat = im;
+    }
     const src = geo.index ? geo.toNonIndexed() : geo;
     const x = new THREE.BufferGeometry();
     x.setAttribute("position", f32(src.attributes.position));
@@ -255,188 +275,11 @@ const inTheWay = (x0: number, x1: number, y0: number, y1: number, z0: number, z1
   return false;
 };
 
-// ---------------- cartoon vegetation (MAT pass) ----------------
-// Kenney's faceted low-poly trees and box hedges -> rounded storybook shapes: clustered smooth spheres for canopies
-// (the two-tone sun term gives each lobe a lit cap and a cool belly), tapered trunks, rounded-box hedges. Smooth
-// normals mean the world ink draws clean silhouettes and lobe-to-lobe folds instead of a crease on every facet.
-type VegKind = "round" | "fat" | "tall" | "cone" | "bush" | "hedge";
-const VEG: Record<string, VegKind> = {
-  tree_oak: "round", tree_default: "round", tree_detailed: "round", tree_fat: "fat", "tree-high-round": "tall", tree: "tall",
-  tree_cone: "cone", plant_bushLarge: "bush", plant_bushDetailed: "bush", plant_bush: "bush", hedge: "hedge",
-};
-const LEAF = ["#5aa83c", "#4c9a37", "#69b545", "#55a243", "#3f8f3c"];
-/** canopy paint (equal px per metre on a unit sphere: 256 around x 128 pole to pole): light crown, darker belly,
- *  soft leaf-clump dabs (kept low contrast: the two-tone sun term does the main modelling) */
-const leafTex = (i: number) => ctex("leafHD" + i, 256, 128, (g, r) => {
-  const base = new THREE.Color(LEAF[i]), top = base.clone().offsetHSL(0.012, 0.03, 0.08), bot = base.clone().offsetHSL(-0.015, 0.0, -0.08);
-  const gr = g.createLinearGradient(0, 0, 0, 128);
-  gr.addColorStop(0, "#" + top.getHexString()); gr.addColorStop(0.42, "#" + base.getHexString()); gr.addColorStop(1, "#" + bot.getHexString());
-  g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
-  for (let k = 0; k < 46; k++) {
-    const x = r() * 256, y = 10 + r() * 108, rad = 5 + r() * 9, light = y < 64 ? r() < 0.7 : r() < 0.25;
-    for (const ox of [-256, 0, 256]) {
-      g.strokeStyle = light ? "rgba(225,255,170,0.22)" : "rgba(20,70,30,0.2)"; g.lineWidth = 2.5; g.lineCap = "round";
-      g.beginPath(); g.arc(x + ox, y + rad * 0.6, rad, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
-    }
-  }
-});
-const leafMat = (i: number) => lam("leafHD" + i, () => ({ map: leafTex(i) }));
-const barkMat = () => lam("barkHD", () => ({ color: "#8f5d3b" }));
-const vegGeo = new Map<string, THREE.BufferGeometry>();
-const lobeGeo = (q: number) => {
-  const k = "lobe" + q;
-  let g = vegGeo.get(k);
-  if (!g) { g = new THREE.SphereGeometry(1, [20, 14, 10][q], [14, 10, 7][q]); vegGeo.set(k, g); }
-  return g;
-};
-const trunkGeo = () => {
-  let g = vegGeo.get("trunk");
-  if (!g) { g = new THREE.CylinderGeometry(0.6, 1, 1, 10, 1, true).translate(0, 0.5, 0); vegGeo.set("trunk", g); }
-  return g;
-};
-/** rounded box (exact: inner box + radius), unit size along x, smooth normals; used for hedges */
-const hedgeGeo = () => {
-  let g = vegGeo.get("hedge");
-  if (!g) {
-    g = new THREE.BoxGeometry(1, 1, 1, 18, 10, 10);
-    const p = g.attributes.position as THREE.BufferAttribute, n = g.attributes.normal as THREE.BufferAttribute;
-    // per-axis rounding radii in unit space (~0.35 m at the ends, ~0.45 m on top / sides at 3.3 x 1.56 x 1.17 m);
-    // flat bottom (it sits on the lawn)
-    const R = [0.106, 0.29, 0.385], v = new THREE.Vector3(), e = new THREE.Vector3(), q = [0, 0, 0];
-    for (let i = 0; i < p.count; i++) {
-      v.fromBufferAttribute(p, i);
-      for (let a = 0; a < 3; a++) {
-        const c = v.getComponent(a), lim = a === 1 && c < 0 ? 0.5 : 0.5 - R[a];
-        q[a] = THREE.MathUtils.clamp(c, -lim, lim); e.setComponent(a, (c - q[a]) / R[a]);
-      }
-      const L = e.length();
-      if (L < 1e-6) continue;
-      e.divideScalar(L);
-      p.setXYZ(i, q[0] + e.x * R[0], q[1] + e.y * R[1], q[2] + e.z * R[2]);
-      const nn = new THREE.Vector3(e.x / R[0], e.y / R[1], e.z / R[2]).normalize();
-      n.setXYZ(i, nn.x, nn.y, nn.z);
-    }
-    g.translate(0, 0.5, 0);
-    vegGeo.set("hedge", g);
-  }
-  return g;
-};
-const yawQ = (a: number) => new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), a);
-/** half-width of a cartoon plant of kind k and height h (for the sight-line test) */
-const vegRad = (k: VegKind, h: number) => (k === "hedge" ? 1.7 : k === "bush" ? 0.85 * h : k === "tall" ? 0.2 * h : k === "cone" ? 0.27 * h : k === "fat" ? 0.44 * h : 0.39 * h);
-/** add one cartoon plant to a batch: base at (x, y, z), height h, q = lobe detail (0 near .. 2 far) */
-const addVeg = (b: Batch, k: VegKind, x: number, y: number, z: number, h: number, seed: number, q = 0) => {
-  const r = rng(Math.abs(Math.floor(seed)) % 200000 + 7), U = (a: number, c: number) => a + (c - a) * r();
-  const leaf = leafMat(k === "cone" ? 4 : k === "hedge" ? 1 : Math.floor(r() * 4)), lobe = lobeGeo(q), yaw = r() * 6.28;
-  const put = (px: number, py: number, pz: number, rad: number, sy = 0.9) =>
-    b.add(lobe, leaf, new THREE.Matrix4().compose(V(x + px, y + py, z + pz), yawQ(r() * 6.28), V(rad, rad * sy, rad)));
-  const trunk = (th: number, tr: number) =>
-    b.add(trunkGeo(), barkMat(), new THREE.Matrix4().compose(V(x, y - 0.15, z), yawQ(yaw), V(tr, th + 0.15, tr)));
-  const ring = (n: number, dist: number, r0: number, r1: number, cy: number, dy: number) => {
-    const a0 = r() * 6.28;
-    for (let i = 0; i < n; i++) {
-      const a = a0 + (i * 6.28) / n + U(-0.35, 0.35), dd = dist * U(0.85, 1.12);
-      put(Math.cos(a) * dd, cy + U(-dy, dy), Math.sin(a) * dd, U(r0, r1));
-    }
-  };
-  if (k === "round" || k === "fat") {
-    const f = k === "fat";
-    trunk((f ? 0.4 : 0.48) * h, 0.055 * h);
-    const cy = (f ? 0.58 : 0.64) * h;
-    put(0, cy, 0, (f ? 0.29 : 0.26) * h);
-    ring(f ? 5 : 4, (f ? 0.22 : 0.18) * h, (f ? 0.19 : 0.17) * h, (f ? 0.23 : 0.21) * h, cy - 0.05 * h, 0.04 * h);
-    put(U(-0.05, 0.05) * h, cy + (f ? 0.15 : 0.17) * h, U(-0.05, 0.05) * h, (f ? 0.19 : 0.17) * h);
-  } else if (k === "tall") {
-    trunk(0.34 * h, 0.045 * h);
-    put(0, 0.47 * h, 0, 0.17 * h, 1.3);
-    put(U(-0.03, 0.03) * h, 0.65 * h, U(-0.03, 0.03) * h, 0.15 * h, 1.3);
-    put(0, 0.82 * h, 0, 0.11 * h, 1.25);
-    ring(3, 0.1 * h, 0.1 * h, 0.12 * h, 0.55 * h, 0.06 * h);
-  } else if (k === "cone") {
-    trunk(0.2 * h, 0.05 * h);
-    put(0, 0.3 * h, 0, 0.26 * h, 0.62);
-    put(0, 0.5 * h, 0, 0.2 * h, 0.66);
-    put(0, 0.68 * h, 0, 0.14 * h, 0.75);
-    put(0, 0.84 * h, 0, 0.08 * h, 1.0);
-  } else if (k === "bush") {
-    put(0, 0.46 * h, 0, 0.5 * h);
-    ring(3, 0.42 * h, 0.32 * h, 0.38 * h, 0.32 * h, 0.04 * h);
-  } else { // hedge segment, 3.3 m along local x
-    b.add(hedgeGeo(), leaf, new THREE.Matrix4().compose(V(x, y - 0.06, z), new THREE.Quaternion(), V(3.3, h + 0.06, Math.max(0.9, h * 0.78))));
-  }
-};
-
-// ---------------- painted cloth banner (MAT round 3) ----------------
-// The Kenney banner is one flat face of the saturated colour atlas: in golden light it kept a uniform, hot red and
-// read as pasted on. Ours is a hanging cloth with real folds (smooth normals, so the two-tone light rolls across
-// them), a swallow-tail hem, a muted crimson (sat ~-25 %) with an ochre border and a diamond like the tower flags.
-const BANNER_COL: Record<string, string> = { "banner-red": "#b8553a", "banner-green": "#4f8a5a" }; // warm red: no purple in shade
-const FOLD = 0.27, CLOTH_W = 1.1, CLOTH_H = 2.6; // fold period across the cloth, cloth size (m)
-const bannerTex = (col: string) => ctex("bannerHD" + col, 256, 700, (g) => {
-  const W = 256, H = 700, base = new THREE.Color(col);
-  const gr = g.createLinearGradient(0, 0, 0, H);
-  gr.addColorStop(0, "#" + base.clone().offsetHSL(0, 0, 0.04).getHexString()); gr.addColorStop(1, "#" + base.clone().offsetHSL(0, 0, -0.06).getHexString());
-  g.fillStyle = gr; g.fillRect(0, 0, W, H);
-  for (let x = 0; x < W; x++) { // painted fold shading, in phase with the geometry folds
-    const s = Math.sin((x / W) * (CLOTH_W / FOLD) * Math.PI * 2);
-    g.fillStyle = s > 0 ? `rgba(255,235,215,${0.1 * s})` : `rgba(60,15,15,${-0.12 * s})`; g.fillRect(x, 0, 1, H);
-  }
-  g.fillStyle = "#" + base.clone().offsetHSL(0, -0.05, -0.12).getHexString(); g.fillRect(0, 0, W, 54); // top hem
-  g.strokeStyle = "#d1aa5c"; g.lineWidth = 9; g.strokeRect(20, 66, W - 40, H - 86);                 // ochre border
-  g.strokeStyle = "rgba(60,30,20,0.45)"; g.lineWidth = 2; g.strokeRect(14, 60, W - 28, H - 74); g.strokeRect(26, 72, W - 52, H - 98);
-  g.fillStyle = "#d1aa5c"; g.fillRect(0, 46, W, 8);
-  const cx = W / 2, cy = 250; // emblem: diamond (the tower flags' motif) on a light disc
-  g.fillStyle = "#efe2c2"; g.beginPath(); g.arc(cx, cy, 62, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = "rgba(60,30,20,0.55)"; g.lineWidth = 3; g.stroke();
-  g.fillStyle = "#d1aa5c"; g.beginPath(); g.moveTo(cx, cy - 46); g.lineTo(cx + 34, cy); g.lineTo(cx, cy + 46); g.lineTo(cx - 34, cy); g.closePath(); g.fill();
-  g.strokeStyle = "rgba(60,30,20,0.6)"; g.lineWidth = 2.5; g.stroke();
-});
-const bannerGeo = () => {
-  let geo = vegGeo.get("banner");
-  if (!geo) {
-    const w = CLOTH_W, hh = CLOTH_H, notch = 0.42;
-    geo = new THREE.PlaneGeometry(w, hh, 16, 20).translate(0, -hh / 2, 0); // top edge at y = 0
-    const p = geo.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), t = -y / hh; // 0 top .. 1 bottom
-      p.setY(i, y + notch * (1 - Math.abs(x) / (w / 2)) * t * t);                              // swallow-tail hem
-      p.setZ(i, (0.025 + 0.055 * t) * Math.sin((x / FOLD) * Math.PI * 2 + 0.6) + 0.04 * t * t); // folds deepen downwards
-    }
-    geo.computeVertexNormals();
-    vegGeo.set("banner", geo);
-  }
-  return geo;
-};
-/** gonfalon on a pole where the Kenney banner plate stood: its plate hung 0.4 x scale beside the placement point,
- *  facing local +-x, so the pole goes there (same framing) and the cloth faces that way */
-const bannerProp = (b: Batch, name: string, x0: number, y: number, z0: number, h: number, yaw0: number) => {
-  const off = 0.4 * (h / 0.84), x = x0 + Math.cos(yaw0) * off, z = z0 - Math.sin(yaw0) * off, yaw = yaw0 + Math.PI / 2;
-  if (inTheWay(x - 0.7, x + 0.7, y, y + h, z - 0.7, z + 0.7, true)) return;
-  const col = BANNER_COL[name] ?? "#b4524b";
-  const M = (px: number, py: number, pz: number) => new THREE.Matrix4().makeRotationY(yaw).setPosition(x, y, z).multiply(new THREE.Matrix4().makeTranslation(px, py, pz));
-  const pole = lam("bannerPole", () => ({ color: "#6e4b33" })), gold = lam("bannerGold", () => ({ color: "#c9a24e" }));
-  b.add(new THREE.CylinderGeometry(0.045, 0.06, h, 10).translate(0, h / 2, 0), pole, M(0, 0, 0));
-  b.add(new THREE.SphereGeometry(0.1, 14, 10), gold, M(0, h + 0.06, 0));
-  b.add(new THREE.CylinderGeometry(0.03, 0.03, CLOTH_W + 0.2, 8).rotateZ(Math.PI / 2), pole, M(0, h - 0.18, 0.06));
-  for (const s of [-1, 1]) b.add(new THREE.SphereGeometry(0.045, 10, 8), gold, M(s * (CLOTH_W / 2 + 0.12), h - 0.18, 0.06));
-  b.add(bannerGeo(), lam("bannerHD" + col, () => ({ map: bannerTex(col), side: THREE.DoubleSide })), M(0, h - 0.2, 0.1));
-};
-
-// ---------------- Kenney props ----------------
+// ---------------- library props ----------------
 const boxes = new Map<THREE.Object3D, THREE.Box3>();
-/** place a Kenney model CENTRED on x/z (by its bounding box: Kenney origins are often a corner) with its base on y, scaled to
- *  height h; left out when it stands in front of the lens, unless keep = true (hero props the shot is about).
- *  Trees, bushes and hedges are drawn as cartoon vegetation, banners as painted cloth instead (MAT pass). */
+/** place a library model CENTRED on x/z (by its bounding box) with its base on y, scaled to height h; left out when it
+ *  stands in front of the lens, unless keep = true (hero props the shot is about) */
 export const prop = (b: Batch, kit: Kit, name: string, x: number, y: number, z: number, h: number, yaw = 0, keep = false) => {
-  if (name.startsWith("banner")) { bannerProp(b, name, x, y, z, h, yaw); return; }
-  const vk = VEG[name];
-  if (vk) {
-    const rad = vegRad(vk, h);
-    if (!keep && inTheWay(x - rad, x + rad, y, y + h, z - rad, z + rad, true)) return;
-    const d = Math.hypot(x, z);
-    addVeg(b, vk, x, y, z, h, x * 92.7 + z * 31.3 + yaw * 1000, d > 200 ? 2 : Math.abs(z) > 45 && d > 60 ? 1 : 0);
-    return;
-  }
   const o = kit[name];
   if (!o) return;
   let box = boxes.get(o);
@@ -447,17 +290,9 @@ export const prop = (b: Batch, kit: Kit, name: string, x: number, y: number, z: 
   b.addObject(o, new THREE.Matrix4().compose(c.add(V(x, y, z)), new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), yaw), V(s, s, s)));
 };
 
-/** a Kenney model as its own object (two-tone materials), centred on x/z, base at y = 0, scaled to height h (no sight-line test:
+/** a library model as its own object (two-tone materials), centred on x/z, base at y = 0, scaled to height h (no sight-line test:
  *  used for the CAM agent's FOREGROUND framing objects, which are meant to stand in front of the lens) */
 export const kitClone = (kit: Kit, name: string, h: number): THREE.Object3D | null => {
-  const vk = VEG[name];
-  if (vk) { // cartoon plant as its own object (MAT pass), base at y = 0
-    const vb = new Batch(), grp = new THREE.Group();
-    addVeg(vb, vk, 0, 0, 0, h, name.length * 977 + h * 131, 0);
-    vb.build(grp, false);
-    grp.traverse((x) => { const m = x as THREE.Mesh; if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; m.matrixAutoUpdate = true; } });
-    return grp;
-  }
   const o = kit[name];
   if (!o) return null;
   let box = boxes.get(o);
@@ -557,150 +392,70 @@ const houseDetail = (b: Batch, m: THREE.Matrix4, w: number, d: number, h: number
   b.add(new THREE.CylinderGeometry(0.13, 0.16, 0.42, 10).translate(0, 0.21, 0), lam("chimPot", () => ({ color: "#b8684a" })), m.clone().multiply(new THREE.Matrix4().makeTranslation(chx, top + 0.16, cz)));
 };
 
-// ---------------- painted extras ----------------
-const chapelTex = () => ctex("chapel", 512, 512, (g) => {
-  g.fillStyle = "#e9e0cc"; g.fillRect(0, 0, 512, 512);
-  g.fillStyle = "rgba(0,0,0,.06)"; for (let y = 0; y < 512; y += 32) g.fillRect(0, y, 512, 2);
-  for (const cx of [128, 384]) {
-    g.fillStyle = "#33406b"; g.strokeStyle = "rgba(40,30,40,.85)"; g.lineWidth = 6;
-    g.beginPath(); g.moveTo(cx - 40, 430); g.lineTo(cx - 40, 190); g.arc(cx, 190, 40, Math.PI, 0); g.lineTo(cx + 40, 430); g.closePath(); g.fill(); g.stroke();
-    g.fillStyle = "rgba(160,200,255,.35)"; g.fillRect(cx - 30, 200, 16, 220);
-    g.strokeStyle = "#d9c9a0"; g.lineWidth = 4; g.beginPath(); g.moveTo(cx, 160); g.lineTo(cx, 430); g.moveTo(cx - 40, 300); g.lineTo(cx + 40, 300); g.stroke();
+// ---------------- Quaternius modular street fronts (Medieval Village MegaKit, public/models/quaternius-village) ----------------
+/** kit pieces used by qHouse(); TOWN_KIT loads them. Wall cells are 2 m x 3.12 m, front facing local +z. */
+export const QV_KIT = ["Wall_UnevenBrick_Straight", "Wall_UnevenBrick_Window_Wide_Round", "Wall_UnevenBrick_Door_Round", "Wall_Plaster_Window_Wide_Flat",
+  "Wall_Plaster_Door_Flat", "Wall_Plaster_WoodGrid", "Window_Wide_Round1", "Window_Wide_Flat1", "WindowShutters_Wide_Round_Closed",
+  "WindowShutters_Wide_Flat_Closed", "Door_1_Round", "Door_1_Flat", "Roof_RoundTiles_6x8", "Roof_Front_Brick6", "Prop_Chimney", "Wall_BottomCover",
+  "Wall_Plaster_Straight", "Floor_WoodDark"]
+  .map((n) => `quaternius-village/${n}.gltf`);
+/** pieces drawn without ink (outlines on every window bar and shutter slat read as noise): they go to the `small` batch */
+const Q_SMALL = new Set(["Window_Wide_Round1", "Window_Wide_Flat1", "WindowShutters_Wide_Round_Closed", "WindowShutters_Wide_Flat_Closed", "Door_1_Round", "Door_1_Flat", "Wall_BottomCover"]);
+/** 6 m gable-front house: wall plane centred at (x, z), facing local +z turned by yaw (yaw 0 = faces +z, PI = -z,
+ *  -PI/2 = -x, PI/2 = +x). Brick (round windows) or plaster (flat windows, half-timbered upper middle), 2-3 floors,
+ *  closed shutters on some windows, door, tiled roof 8 m deep, chimney. block = true adds a house() block behind for the
+ *  sides and back (leave false when one is already there). The front is never culled: it stands on a street edge. */
+export const qHouseAt = (b: Batch, small: Batch, kit: Kit, x: number, z: number, yaw: number, seed: number, block = false, open = false) => {
+  const brick = seed % 3 !== 1, floors = seed % 2 ? 3 : 2, F = 3.12, top = floors * F;
+  if (block) house(b, x - 4.1 * Math.sin(yaw), z - 4.1 * Math.cos(yaw), yaw, 6, 8, top, seed % 8, 0);
+  const base = new THREE.Matrix4().makeTranslation(x, 0, z).multiply(new THREE.Matrix4().makeRotationY(yaw));
+  const put = (name: string, lx: number, ly: number, lz = 0) => {
+    const o = kit[name];
+    if (o) (Q_SMALL.has(name) ? small : b).addObject(o, base.clone().multiply(new THREE.Matrix4().makeTranslation(lx, ly, lz)));
+  };
+  const W = brick ? "Wall_UnevenBrick_Window_Wide_Round" : "Wall_Plaster_Window_Wide_Flat";
+  const G = brick ? "Window_Wide_Round1" : "Window_Wide_Flat1", S = brick ? "WindowShutters_Wide_Round_Closed" : "WindowShutters_Wide_Flat_Closed";
+  const doorAt = open ? 0 : [-2, 0, 2][seed % 3];
+  for (let f = 0; f < floors; f++) for (const lx of [-2, 0, 2]) {
+    const y = f * F;
+    if (f === 0 && lx === doorAt) { put(brick ? "Wall_UnevenBrick_Door_Round" : "Wall_Plaster_Door_Flat", lx, y); if (!open) put(brick ? "Door_1_Round" : "Door_1_Flat", lx, y); continue; }
+    if (!brick && f > 0 && lx === 0) { put("Wall_Plaster_WoodGrid", lx, y); continue; }
+    put(W, lx, y);
+    if ((seed * 7 + f * 3 + lx) % 5 === 0) put(S, lx, y); else put(G, lx, y); // about one window in five shuttered
   }
-});
-const clockTex = () => ctex("clock", 256, 256, (g) => {
-  g.fillStyle = "#f7f1e1"; g.strokeStyle = "#221f2e"; g.lineWidth = 12;
-  g.beginPath(); g.arc(128, 128, 112, 0, 7); g.fill(); g.stroke();
-  g.lineCap = "round";
-  for (let i = 0; i < 12; i++) { const a = (i * Math.PI) / 6; g.lineWidth = 8; g.beginPath(); g.moveTo(128 + 80 * Math.cos(a), 128 + 80 * Math.sin(a)); g.lineTo(128 + 96 * Math.cos(a), 128 + 96 * Math.sin(a)); g.stroke(); }
-  g.lineWidth = 12; g.beginPath(); g.moveTo(128, 128); g.lineTo(128, 62); g.stroke();
-  g.lineWidth = 9; g.beginPath(); g.moveTo(128, 128); g.lineTo(178, 150); g.stroke();
-});
-/** round 4: St George's cross (England, 1831): white field, red cross (the old red + yellow diamond read as Vietnam's flag) */
-export const flagTex = () => ctex("flagStGeorge", 256, 160, (g) => {
-  g.fillStyle = "#f4f0e6"; g.fillRect(0, 0, 256, 160);
-  g.fillStyle = "#c8323a"; g.fillRect(0, 62, 256, 36); g.fillRect(110, 0, 36, 160);
-  g.fillStyle = "rgba(120,100,90,0.10)"; g.fillRect(0, 150, 256, 10); // soft hem shade
-});
-
-// ---------------- town ----------------
-const inPark = (x: number, z: number) => z < 0 && x > 46 && x < 96 && z > -100 && z < -49;
-const inMill = (x: number, z: number) => z < 0 && x > -66 && x < -14 && z > -90 && z < -54;
-const inChurch = (x: number, z: number) => (z > 0 && x > 10 && x < 38 && z > 46 && z < 84) || (z > 0 && x > 86 && x < 110 && z > 60 && z < 84);
-
-export const buildTown = (root: THREE.Object3D, kit: Kit, rays: Ray[] = []) => {
-  const b = new Batch(), r = rng(11);
-  sight = rays;
-  const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length) % a.length];
-  for (const bank of [-1, 1]) {
-    const away = bank > 0 ? Math.PI : 0; // fronts face the river
-    // riverfront rows, fronts on the quay at |z| = 36.5
-    for (const sx of [-1, 1]) {
-      let x = 8.5;
-      while (x < 134) {
-        const w = pick([7, 9]), h = pick([7, 8.4, 9.8]), cx = sx * (x + w / 2), cz = bank * 40.5;
-        house(b, cx, cz, away, w, 8, h, Math.floor(r() * 8));
-        x += w + (r() < 0.25 ? 2.5 : 0.25);
-      }
-    }
-    // main street, fronts on |x| = 6
-    for (const sx of [-1, 1]) {
-      let z = 46;
-      while (z < 150) {
-        const w = pick([7, 9]), h = pick([7, 8.4, 9.8]);
-        if (!inChurch(sx * 10, bank * (z + w / 2))) house(b, sx * 10, bank * (z + w / 2), sx < 0 ? Math.PI / 2 : -Math.PI / 2, w, 8, h, Math.floor(r() * 8));
-        z += w + (r() < 0.2 ? 3 : 0.3);
-      }
-    }
-    // back rows
-    for (const zf of [52, 66, 80, 96]) for (const sx of [-1, 1]) {
-      let x = 17 + r() * 4;
-      while (x < 124) {
-        const w = pick([7, 9]), h = pick([7, 8.4, 9.8]), cx = sx * (x + w / 2), cz = bank * (zf + 4 + r() * 2);
-        if (r() > 0.22 && !inPark(cx, cz) && !inMill(cx, cz) && !inChurch(cx, cz)) house(b, cx, cz, away, w, 8, h, Math.floor(r() * 8));
-        x += w + 1 + r() * 4;
-      }
-    }
-  }
-  // church on the far bank: nave, tower, spire, clock
-  const ch = lam("chapel", () => ({ map: chapelTex() })), st = lam("towerstone", () => ({ map: stoneHD("tstoneHD") })); // 2048 canvas at its own repeat 0.5 (paint.ts)
-  b.add(boxGeo(V(18.5, D0, 57), V(29.5, D0 + 9, 80), 6), ch);
-  const sl = roofMat("#8f97a8");
-  b.add(quad(V(18.1, D0 + 8.8, 57), V(18.1, D0 + 8.8, 80.4), V(24, D0 + 13.5, 80.4), V(24, D0 + 13.5, 57), 6, 2), sl);
-  b.add(quad(V(29.9, D0 + 8.8, 80.4), V(29.9, D0 + 8.8, 57), V(24, D0 + 13.5, 57), V(24, D0 + 13.5, 80.4), 6, 2), sl);
-  b.add(tri(V(18.5, D0 + 9, 80), V(29.5, D0 + 9, 80), V(24, D0 + 13.5, 80)), st);
-  b.add(boxGeo(V(21.4, D0, 51.6), V(26.6, D0 + 19, 57), 4), st);
-  b.add(boxGeo(V(21.1, D0 + 18.6, 51.3), V(26.9, D0 + 19.4, 57.3), 4), st);
-  const spire = new THREE.ConeGeometry(4.0, 13, 4, 1);
-  spire.rotateY(Math.PI / 4);
-  b.add(spire, sl, new THREE.Matrix4().makeTranslation(24, D0 + 19.4 + 6.5, 54.3));
-  b.add(tri(V(29.5, D0 + 9, 57), V(18.5, D0 + 9, 57), V(24, D0 + 13.5, 57)), st);
-  b.add(quad(V(25.1, D0 + 12.4, 51.55), V(22.9, D0 + 12.4, 51.55), V(22.9, D0 + 14.6, 51.55), V(25.1, D0 + 14.6, 51.55)), lam("clock", () => ({ map: clockTex(), alphaTest: 0.5 })));
-  // mill (near bank) + chimneys with smoke handled in the world
-  const mill = lam("mill", () => ({ map: facadeHD("mill", 30, 13, { wall: "#b5543c", shutter: "#3b3f52", brick: true }) }));
-  const millS = lam("mills", () => ({ map: facadeHD("mills", 12, 13, { wall: "#b5543c", shutter: "#3b3f52", brick: true }) }));
-  b.add(quad(V(-58, D0, -70), V(-28, D0, -70), V(-28, D0 + 13, -70), V(-58, D0 + 13, -70)), mill);
-  b.add(quad(V(-28, D0, -82), V(-58, D0, -82), V(-58, D0 + 13, -82), V(-28, D0 + 13, -82)), mill);
-  b.add(quad(V(-58, D0, -82), V(-58, D0, -70), V(-58, D0 + 13, -70), V(-58, D0 + 13, -82)), millS);
-  b.add(quad(V(-28, D0, -70), V(-28, D0, -82), V(-28, D0 + 13, -82), V(-28, D0 + 13, -70)), millS);
-  b.add(quad(V(-58.4, D0 + 12.8, -69.6), V(-27.6, D0 + 12.8, -69.6), V(-27.6, D0 + 16.5, -76), V(-58.4, D0 + 16.5, -76), 8, 2), sl);
-  b.add(quad(V(-27.6, D0 + 12.8, -82.4), V(-58.4, D0 + 12.8, -82.4), V(-58.4, D0 + 16.5, -76), V(-27.6, D0 + 16.5, -76), 8, 2), sl);
-  b.add(tri(V(-58, D0 + 13, -82), V(-58, D0 + 13, -70), V(-58, D0 + 16.5, -76)), millS);
-  b.add(tri(V(-28, D0 + 13, -70), V(-28, D0 + 13, -82), V(-28, D0 + 16.5, -76)), millS);
-  const chim = lam("chimney", () => ({ map: rep(brick(), 2, 8) })), soot = lam("soot", () => ({ color: "#4a3442" }));
-  for (const [x, z, hh] of [[-22, -77, 30], [-80, 93, 24]] as const) {
-    b.add(new THREE.CylinderGeometry(0.95, 1.35, hh, 14, 1, true), chim, new THREE.Matrix4().makeTranslation(x, D0 + hh / 2, z));
-    b.add(new THREE.CylinderGeometry(1.15, 1.1, 1.3, 14), soot, new THREE.Matrix4().makeTranslation(x, D0 + hh + 0.3, z));
-  }
-  house(b, -80, 100, Math.PI, 16, 10, 9.8, 7);
-  // hills around the valley
-  const hill = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
-  const hm = [lam("hillA", () => ({ color: "#78b257" })), lam("hillB", () => ({ color: "#6aa24e" })), lam("hillC", () => ({ color: "#8bbf63" }))];
-  ([[-360, 250, 190, 52, 120], [140, 380, 240, 64, 140], [430, 150, 170, 48, 130], [-440, -130, 190, 44, 150], [-90, -390, 250, 58, 140],
-    [320, -330, 210, 54, 130], [520, -60, 160, 40, 120], [-560, 60, 200, 46, 140]] as const).forEach(([x, z, sx, sy, sz], i) =>
-    b.add(hill, hm[i % 3], new THREE.Matrix4().compose(V(x, D0 - 2, z), new THREE.Quaternion(), V(sx, sy, sz))));
-  // trees: quays, gardens, valley, hilltops
-  const trees = ["tree_oak", "tree_default", "tree_detailed", "tree_fat", "tree-high-round", "tree"];
-  for (const bank of [-1, 1]) for (let x = -130; x <= 130; x += 22) if (Math.abs(x) > 12) prop(b, kit, pick(trees), x + r() * 4, D0, bank * 33.6, 7 + r() * 2.5, r() * 6);
-  for (let i = 0; i < 140; i++) {
-    const x = (r() - 0.5) * 520, z = (r() < 0.5 ? -1 : 1) * (48 + r() * 220);
-    if (inPark(x, z) || inMill(x, z) || inChurch(x, z) || Math.abs(x) < 16) continue;
-    prop(b, kit, pick(trees), x, D0, z, 7 + r() * 4, r() * 6);
-  }
-  for (let i = 0; i < 60; i++) {
-    const a = r() * Math.PI * 2, d = 230 + r() * 160;
-    prop(b, kit, pick(["tree_cone", "tree_default", "tree_oak"]), Math.cos(a) * d * 1.3, D0, Math.sin(a) * d, 12 + r() * 6, r() * 6);
-  }
-  // quay furniture
-  for (const bank of [-1, 1]) {
-    for (let x = -126; x <= 126; x += 12) if (Math.abs(x) > 5) prop(b, kit, "lantern", x, D0, bank * 31.0, 2.8);
-    prop(b, kit, "banner-red", 5.4, D0, bank * 31.6, 3.6, bank > 0 ? Math.PI : 0);
-  }
-  prop(b, kit, "stall-red", -14, D0, -34, 3.2);
-  prop(b, kit, "stall-green", -21.5, D0, -34.4, 3.2, 0.1);
-  // round 4: this cart sat blurred in shot 11's bottom-left corner (lens at 14, 10.5, -47) as a grey "mushroom"
-  // (bed + handle + wheel); moved 3.5 m along the quay, out of that frame, still dressing the market
-  prop(b, kit, "cart", 17.0, D0, -34.0, 2.2, 1.2);
-  prop(b, kit, "stall-bench", 20, D0, -32.2, 1.0);
-  prop(b, kit, "stall-green", 16, D0, 34, 3.2, Math.PI);
-  prop(b, kit, "stall-red", 23.5, D0, 34.3, 3.2, Math.PI);
-  prop(b, kit, "cart", -15, D0, 33.6, 2.2, 2.4);
-  prop(b, kit, "windmill", 98, D0, 72, 16, -0.6);
-  prop(b, kit, "canoe", -19, 0.02, 27.6, 0.7, 1.5);
-  prop(b, kit, "canoe", 31, 0.02, -28.2, 0.7, -1.4);
-  for (let i = 0; i < 14; i++) prop(b, kit, "lily_large", (r() - 0.5) * 120, 0.03, (r() < 0.5 ? -1 : 1) * (27.2 + r() * 2.2), 0.08, r() * 6);
-  // park around the swing (near bank, x 50..92, z -96..-56)
-  for (const [n, x, z, h] of [["tree_oak", 58, -66, 9.5], ["tree_fat", 84, -64, 8], ["tree_detailed", 54, -84, 9], ["tree_default", 88, -86, 9],
-    ["tree_oak", 79, -95, 10], ["tree-high-round", 61, -94, 9], ["tree_default", 92, -73, 8.5]] as const) prop(b, kit, n, x, D0, z, h, x);
-  for (let x = 50; x < 92; x += 3.2) prop(b, kit, "hedge", x, D0, -57, 1.5);
-  for (const [x, z] of [[62, -76], [77, -71], [66, -82], [75, -80], [57, -73]]) prop(b, kit, pick(["plant_bushLarge", "plant_bushDetailed", "plant_bush"]), x, D0, z, 1.3);
-  // flowers only (inked grass tufts read as green boxes), and none inside the swing's 4 m circle
-  for (let i = 0; i < 26; i++) {
-    const f = pick(["flower_redA", "flower_yellowA", "flower_purpleA"]), x = 56 + r() * 30, z = -60 - r() * 32;
-    if (Math.hypot(x - 70, z + 75) > 4) prop(b, kit, f, x, D0, z, 0.5);
-  }
-  prop(b, kit, "stall-bench", 76.5, D0, -79.5, 1.0, Math.PI);
-  prop(b, kit, "lantern", 64.5, D0, -71, 2.8);
-  b.build(root);
-  sight = [];
+  for (const lx of [-2, 0, 2]) put("Wall_BottomCover", lx, 0);
+  put("Roof_Front_Brick6", 0, top);
+  put("Roof_RoundTiles_6x8", 0, top, -4);
+  if (seed % 2 === 0) put("Prop_Chimney", 1.6, top + 1.5, -5);
 };
+/** enterable qHouseAt: the same front with an open doorway in the middle and, behind it, a 6 x 6 m room (plaster walls,
+ *  dark plank floor and ceiling) in `room` (an indoor Batch: dark shade side, lit by its windows and lamps). Room interior:
+ *  local x -2.9..2.9, z -0.31..-6.31, ceiling 3.1 m; furnish it with prop(). Returns the world positions just inside the
+ *  two ground-floor windows (WorldBase puts the window light there). */
+/** doors: inner doorways in the side walls (middle cell), local "+x" / "-x" side, to walk into a neighbouring room */
+export const qRoomAt = (b: Batch, small: Batch, room: Batch, kit: Kit, x: number, z: number, yaw: number, seed: number, doors: ("+x" | "-x")[] = []) => {
+  qHouseAt(b, small, kit, x, z, yaw, seed, false, true);
+  const base = new THREE.Matrix4().makeTranslation(x, 0, z).multiply(new THREE.Matrix4().makeRotationY(yaw));
+  const put = (name: string, lx: number, ly: number, lz: number, ry: number, rx = 0) => {
+    const o = kit[name];
+    if (o) room.addObject(o, base.clone().multiply(new THREE.Matrix4().makeTranslation(lx, ly, lz)).multiply(new THREE.Matrix4().makeRotationY(ry)).multiply(new THREE.Matrix4().makeRotationX(rx)));
+  };
+  // wall cells: plaster inner face (local -z) turned into the room
+  for (const lz of [-1.31, -3.31, -5.31]) for (const sx of [1, -1]) // the middle cell becomes an open doorway on a door side
+    put(lz === -3.31 && doors.includes(sx > 0 ? "+x" : "-x") ? "Wall_Plaster_Door_Flat" : "Wall_Plaster_Straight", 3.21 * sx, 0, lz, (sx * Math.PI) / 2);
+  for (const lx of [-2, 0, 2]) {
+    put("Wall_Plaster_Straight", lx, 0, -6.62, Math.PI);
+    for (const lz of [-1.31, -3.31, -5.31]) { put("Floor_WoodDark", lx, 0.02, lz, 0); put("Floor_WoodDark", lx, 3.1, lz, 0, Math.PI); }
+  }
+  // ceiling beams across the room, in the kit's wood (so the ceiling reads as a timber structure, not a flat lid)
+  let wood: THREE.Material | undefined;
+  kit.Floor_WoodDark?.traverse((c) => { const m = c as THREE.Mesh; if (m.isMesh && !wood) wood = toLambert(Array.isArray(m.material) ? m.material[0] : m.material); });
+  if (wood) for (const lz of [-1.5, -3.3, -5.1]) room.add(boxGeo(new THREE.Vector3(-3, 2.82, lz - 0.13), new THREE.Vector3(3, 3.09, lz + 0.13), 0, true), wood, base);
+  // corner posts: the side wall cells stop 0.31 m short of the front and back walls; a timber post closes each gap (sky showed through)
+  if (wood) for (const sx of [1, -1]) for (const [z0, z1] of [[-6.75, -6.2], [-0.42, 0.05]])
+    room.add(boxGeo(new THREE.Vector3(sx > 0 ? 2.98 : -3.38, 0, z0), new THREE.Vector3(sx > 0 ? 3.38 : -2.98, 3.1, z1), 0, true), wood, base);
+  return [-2, 2].map((lx) => new THREE.Vector3(lx, 1.7, -0.8).applyMatrix4(base));
+};
+/** street-side qHouseAt: sx = street side (+1 = +x side, facing -x), zc = centre along the street, wall plane at |x| = x0 */
+export const qHouse = (b: Batch, small: Batch, kit: Kit, sx: number, zc: number, seed: number, x0 = 6.4) =>
+  qHouseAt(b, small, kit, sx * x0, zc, sx > 0 ? -Math.PI / 2 : Math.PI / 2, seed);

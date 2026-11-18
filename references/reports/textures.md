@@ -1,4 +1,5 @@
 # Textures: reference surface painting vs ours, and how to paint ours procedurally
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 Topic folder: `references/textures/` (scripts, crops, data, side-by-sides, prototype).
 Study. Nothing under `your Remotion project` was edited or rendered.

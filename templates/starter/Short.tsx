@@ -4,5 +4,5 @@ import { World, loadKit } from "./world";
 import * as story from "./story";
 
 export const STARTER_FRAMES = story.TOTAL;
-/** poolShots: close-up shot ids that get the soft light pool behind the subject's head */
-export const StarterShort = makeShort({ World, loadKit, story, poolShots: [2] }); // EXAMPLE poolShots
+/** poolShots: close-up shot ids that get the soft light pool behind the subject's head (3D actors: usually none) */
+export const StarterShort = makeShort({ World, loadKit, story, poolShots: [] });

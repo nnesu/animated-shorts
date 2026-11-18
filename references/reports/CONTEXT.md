@@ -1,4 +1,5 @@
 # Look-match study brief (HISTORICAL, bridge look pass, 2026-10; not instructions. scipy is NOT installed now; paths and bans below are obsolete; the privacy rule still applies)
+Read only before revising the matching house value (LOOK_MATCH.md "Before revising any house value"). Study material.
 
 ## Goal
 Our original 67 s vertical short "The Bridge That Fell for a Song" (1831 Broughton bridge, 74 marching soldiers) is

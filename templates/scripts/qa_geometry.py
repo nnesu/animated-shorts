@@ -1,8 +1,8 @@
 # Flags framing / staging defects from the QADUMP scene-geometry log (src/shared/qadump.ts). Scripted, no model.
 # Input: <prefix>qadump.jsonl from bridge-stills.mjs (one QaFrame JSON per line, "QADUMP " prefix optional) or a JSON list.
-# Per frame (subject = the on-screen card with the largest screen height; cards < 10 % in frame are ignored):
-#   subject < 90 % inside the frame | a card cut 10-90 % by the frame edge | a card < 1.8 m from the lens |
-#   feet floating > 0.05 m above the ground under them | side-profile drawing | no card >= 1.5x the next card's screen
+# Per frame (subject = the on-screen actor with the largest screen height; actors < 10 % in frame are ignored):
+#   subject < 90 % inside the frame | an actor cut 10-90 % by the frame edge | an actor < 1.8 m from the lens |
+#   feet floating > 0.05 m above the ground under them | no actor >= 1.5x the next actor's screen
 #   height (no clear subject), unless the frame is crowdOk or its shot id is in --crowd-ok.
 # Usage: python scripts/qa_geometry.py <qadump.jsonl|json> [--crowd-ok 3,5]   -> prints flags, exit 1 if any
 import json, sys
@@ -36,8 +36,6 @@ def flags(fr):
             out.append(f"{nm(c)} {c['dist']} m from the lens (< 1.8)")
         if c.get("groundY") is not None and c["baseY"] - c["groundY"] > 0.05:
             out.append(f"{nm(c)} floats {c['baseY'] - c['groundY']:.2f} m above the ground")
-        if c.get("side"):
-            out.append(f"{nm(c)} drawn as side profile")
     if len(cards) > 1 and h[order[0]] < 1.5 * h[order[1]] and not fr.get("crowdOk") and fr["id"] not in crowd:
         out.append(f"no clear subject: tallest {h[order[0]]:.0f} px vs next {h[order[1]]:.0f} px (< 1.5x; tag crowd-ok if intended)")
     return out
