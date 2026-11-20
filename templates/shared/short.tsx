@@ -65,6 +65,10 @@ export const makeShort = (cfg: ShortCfg): React.FC => {
     const f = useCurrentFrame();
     const { camera, scene } = useThree();
     const world = useMemo(() => new World(kit, id), [kit, id]);
+    // free the old shot's GPU memory when the shot changes (the root is mounted with dispose={null}); shared kit
+    // geometry / textures just upload again if the next shot uses them
+    useEffect(() => () => world.root.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry?.dispose();
+      for (const mt of [m.material].flat() as THREE.MeshStandardMaterial[]) { for (const t of [mt.map, mt.emissiveMap, mt.normalMap]) t?.dispose(); mt.dispose(); } }), [world]);
     const target = useMemo(() => new THREE.Vector3(), []);
     const on = useMemo(toggles, []);
     const dbg = useMemo(() => !!(getInputProps() as { post?: { dofDebug?: boolean } }).post?.dofDebug, []);

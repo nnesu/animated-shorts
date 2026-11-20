@@ -117,7 +117,10 @@ diff = np.abs(np.diff(F.astype(np.int16), axis=0)).mean(axis=(1, 2, 3))
 med = np.array([np.median(diff[max(0, i - 8):i + 9]) for i in range(len(diff))])
 pops = [i + 1 for i in range(len(diff)) if diff[i] > 3 * med[i] + 1.0 and (i + 1) not in planned]
 black = [i for i in range(n) if stats["mean"][i] < 0.04]
-white = [i for i in range(n) if stats["mean"][i] > 0.93 and i not in planned]
+# white = a lost WebGL context: centre crop (the vignette keeps the corners dark), bright and flat
+Cc = luma[:, H // 4:3 * H // 4, W // 4:3 * W // 4].reshape(n, -1)
+white = [i for i in range(n) if Cc[i].mean() > 0.85 and Cc[i].std() < 0.06 and i not in planned]
+check(bool(white), f"white frames (lost WebGL context; re-render those chunks) {white[:20]}")
 frozen, run_start = [], None
 for i in range(len(diff)):
     if diff[i] < 0.02:

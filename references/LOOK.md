@@ -1,11 +1,21 @@
 # Look (house style, the default)
 
-Read when building sets, placing the camera or cast, or judging stills. The engine and starter already produce this look; these are the rules it cannot enforce. Changing the look itself: `LOOK_MATCH.md`.
+Read when building sets, placing the camera or cast, planning the hook, or judging stills. The engine and starter already produce this look; these are the rules it cannot enforce. Changing the look itself: `LOOK_MATCH.md`.
+
+## Hook (the first 5 s decide the video: make it entertaining)
+Reference: the Gimli Glider hook (`src/archive/gimli-glider/story.ts` shot 1, frames 0-180), the user's best short.
+- **Frame 1 = hook visual zoom:** a wide context shot of zone 1 with the hero object whole (the jet on the ramp, truck, stand), then a quick ease-out zoom (frames ~3-21) to the first subject. Never open on a close-up or an empty set.
+- **Action already running at frame 1:** people mid-task, machines working, numbers moving (the fueller on the stand with the hose coupled, the meter rolling). Nothing starts from rest; voice starts at frame 1.
+- **A new visual on each key word of the hook, about every 1-1.5 s:** pan to the thing the voice names as it is named ("fuel" → the meter's litres rolling; "and their math was right" → a close over-the-shoulder shot of the glowing calculator). Quick pans, not cuts.
+- **Real detail sells it:** the real procedure, tools and numbers (refuel coupling, dripstick, the real 1983 sum), researched, not invented.
+- **Something glows or moves in every hook frame:** screens, meters, calculator halo, headlights, lit windows.
+- **Tease, do not tell:** the visuals show the act the claim names (fuel going in), never the payoff.
+- **Holds under ~1 s in the hook;** no stop between two moves; props in hands from frame 0 (no pop-in).
 
 ## World
 - One compact enclosed area per group of scenes: the engine's `town: "lane"` (a 6 m lane, about 50 m long, closed at both ends by a bend with houses across). No street, road or house row runs out of frame; close every view with a bend, a building or a wall. Other areas sit 100+ m away and are enclosed the same way.
-- Every shot hides the horizon: buildings, rows of trees with 2-3 m bushes in the trunk gaps, or a far hill. Fill only each camera's view cone.
-- Sets are rich and dressed: ornaments, textures, flags, packed crowds. Interiors get posters or pictures, patrons, tables, shelves.
+- Every shot hides the horizon: buildings, rows of trees with 2-3 m bushes in the trunk gaps, or a far hill. Fill only each camera's view cone. Towns: 2-3 rows of tall buildings rising with distance, a fence or barrier at the edge of the site (airport-style mesh fence), parking lots with parked cars, bushes along building fronts: no gaps, no empty land.
+- Sets are rich and dressed: ornaments, textures, flags, packed crowds. Interiors get posters or pictures, patrons, tables, shelves. Events look alive: staged vehicles in lanes, crowds on bleachers, banner flags, tents, standing NPCs, a few moving; vehicles get contact shadows and glowing head / tail lights.
 - No flat surfaces. A texture alone still reads flat: break walls with trim, openings, wear and colour variation. Grass is textured (`M.grass`).
 - Physically plausible: nothing floats, signs and lamps hang from a visible mount, no empty lots (the culler removes engine houses: build your own), nothing pops in or out mid-shot.
 - At least 90 % library models, Quaternius first; no flat-colour low-poly packs. Models built in code copy the library models in the same frame: proportions, bevel and roundness, polygon density, detail size, palette. Open a few before building. Kit materials are tinted into the house palette in `build.ts` (`QTINT`); a new Quaternius material that renders grey needs an entry there.
@@ -15,6 +25,12 @@ Read when building sets, placing the camera or cast, or judging stills. The engi
 - Dusk and night: a dim cool moon; the real light comes from the lane's wall lanterns and lit windows. People stand near a source so they read: add or move a source, never brighten a person.
 - Indoors: rooms are dark by default. Window light (cool, fades at dusk) plus era-appropriate sources on props with `this.light(..., "candle")`: candles, oil lamps, lanterns, chandeliers up to the 1800s; electric lamps after 1900. At least one source near the people.
 - Time-lapse (`tod`) plays inside a camera move or a wide hold, not a push; people leave and come back while it runs.
+
+## Golden-hour "shader" look (the default unless the story needs day or night)
+The user's target: "Minecraft shaders" contrast plus "Vice City" glow. Three layers; stills show only the first two.
+- **Light:** every shot `"golden"`, sun lifted and turned to the side (`SUN: { az: 40, el: 18 }` per shot via `sunShot`). In `pose()` every frame: `TONE.uLitCol.value.set(2.05, 1.3, 0.74); TONE.uShadeCol.value.set(0.2, 0.18, 0.23); TONE.uShadeLift.value.set(0.035, 0.04, 0.07); TONE.uTerm.value = 0.09;` (hot sunlit sides, deep cool shade, a crisp edge).
+- **Glow:** `markGlass(kit)` before the build, `lightGlass(this.root)` after `this.finish()` (lit windows). Screens, meters, buttons, head / tail lights: unlit or emissive materials; models whose windows do not glow get thin amber glow plates on top. A held screen gets an additive halo sprite.
+- **Film finish:** `scripts/film_finish.py` after the render (`RENDER.md`): halation, amber grade, S-curve, highlight glow, vignette, whip-pan blur. No grain.
 
 ## Colour
 - One saturated hero colour against the blue sky; everything else muted: brick, cream, ochre, terracotta, warm grey stone, dark iron. Never lemon, never lavender on lit faces.
@@ -28,7 +44,11 @@ Read when building sets, placing the camera or cast, or judging stills. The engi
 - 2D overlays (rings, X marks, diagrams) get a drop shadow (`dropShadow()` in `castkit.ts`).
 
 ## Camera
-- Pan first: one continuous take per area (`chain()`), along the lane, through doors, room to room. Hard cuts only for a change of place or time.
+- Pan first: one continuous take per area (`chain()`), along the lane, through doors, room to room. Hard cuts only for a change of place (zone) or time.
+- Zone cut = hard cut with a whip pan (`whipOut` / `whipIn`, cut frames in `WHIPS`, blurred by `film_finish.py`), or a continuous move: a fly-through (aim at a fixed point inside the next set, phase through the skin in ~15 frames, swap sets inside it, then slow down: `keyed()`), or a map zoom (pull far up, dive through clouds onto the new place, heavy DOF blur until it settles). Never a plain cut inside a zone.
+- Camera moves land on the word that names their target; reactions 0-3 frames before.
+- Action-cam pacing: fast through walls and skins, slower inside, a 0.3 s pause while turning to face the next goal, arrive on the word.
+- The subject fills at least 30 % of the frame. Moving subjects: pan to it, hold 1 s, zoom in, follow it; keep its front (a plane's nose) in frame through turns and slips.
 - No creeping zooms. Holds are still; motion comes from story moves and fill-in pans.
 - Fill-in pan: a 12-frame pan to a new setup only after 3 s with no story move or cut, skipped if one comes within 1 s. Each changes side angle (12-20 degrees, sideways at most 2 m), height (-0.2 to +0.35 m) and zoom (fov x 0.85-1.12). `chain()` inserts them.
 - Close-ups of small objects: horizontal pans with zoom changes, height lift about 20 % (enough to show the tops), some setups show the person behind (`SETUPS_MACRO`).
@@ -36,6 +56,11 @@ Read when building sets, placing the camera or cast, or judging stills. The engi
 - Pushing toward a far focus shrinks the sun shadow box: cut instead of pushing across a big distance.
 - Rolls of 4-5 degrees. No hand-held float. Impact kicks flip sign every frame and decay over 7 frames.
 - A foreground prop near the frame edge in about a third of shots (`prop(..., keep = true)`), recognisable or absent. Wides stay nearly sharp.
+
+## Show the mechanism (every line gets a visual)
+- Each narration line has its own on-screen action, landing on its word. A shot that only shows a person looking or holding something for over ~1.5 s gets a move, an overlay or an animation.
+- Explain how things work on screen: a cut-away diagram card (`cast.ts` overlay) animated over the line that names it, numbers that count from the first frame of the card, the sum popping over the head, comparison objects (a balance scale with labelled pans).
+- After an action, people react (shock face, hands on head or mouth) instead of looping a clip.
 
 ## Hero objects (an object is the subject of a line)
 - It gets the frame: a close hold (object at 40-60 % of the height, fov 30-40, focus on it), reached by a move from the wide.

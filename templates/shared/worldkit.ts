@@ -20,6 +20,23 @@ export const TOWN_KIT = [...QV_KIT, ...["CommonTree_1", "CommonTree_2", "CommonT
 /** road / pavement maps with normal maps (relief under the two-tone light), filled by the kit loader */
 export const QTEX: Record<string, THREE.Texture> = {};
 const QTEX_FILES: Record<string, string> = { road: "T_UnevenBrick_BaseColor", roadN: "T_UnevenBrick_Normal", pave: "T_Brick_BaseColor", paveN: "T_Brick_Normal" };
+/** memory budget (7.4 GB laptop): textures under o capped at max px (2048 trim sheets cost 4x the RAM + GPU); frees decoded ImageBitmaps */
+export const capTextures = (o: THREE.Object3D, max = 1024) => {
+  const done = new Set<THREE.Texture>();
+  o.traverse((x) => { const m = x as THREE.Mesh; if (!m.isMesh) return;
+    for (const mt of [m.material].flat() as THREE.MeshStandardMaterial[]) for (const t of [mt.map, mt.emissiveMap, mt.normalMap, mt.roughnessMap, mt.metalnessMap, mt.aoMap]) {
+      const im = t?.image as { width: number; height: number; close?: () => void } | undefined; if (!t || !im || done.has(t) || Math.max(im.width, im.height) <= max) continue;
+      done.add(t); const k = max / Math.max(im.width, im.height), c = document.createElement("canvas");
+      c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext("2d")!.drawImage(im as CanvasImageSource, 0, 0, c.width, c.height);
+      im.close?.(); t.image = c; t.needsUpdate = true; } });
+};
+/** "Vice City" glow (golden hour / dusk): markGlass(kit) before the build tags kit materials named Glass / Window; after
+ *  this.finish(), lightGlass(this.root) makes every tagged material an emissive amber window (toLambert copies colours, not names) */
+const GLOW_MARK = new THREE.Color(0.913, 0.517, 0.271);
+export const markGlass = (kit: Kit) => { for (const k of Object.values(kit)) k.traverse((x) => { const m = x as THREE.Mesh;
+  if (m.isMesh) for (const mt of [m.material].flat() as THREE.MeshStandardMaterial[]) if (mt.name === "Glass" || mt.name === "Window") mt.color?.copy(GLOW_MARK); }); };
+export const lightGlass = (root: THREE.Object3D, col = "#ffb45a", i = 1.6) => root.traverse((x) => { const m = x as THREE.Mesh; if (!m.isMesh) return;
+  for (const mt of [m.material].flat() as THREE.MeshLambertMaterial[]) if (mt.color?.equals(GLOW_MARK) && mt.emissive) { mt.color.set("#3a2a20"); mt.emissive.set(col); mt.emissiveIntensity = i; } });
 /** loader for a list of models; the kit key is the model name without pack or extension. Missing files are skipped. */
 export const makeKitLoader = (names: string[]) => {
   let kitP: Promise<Kit> | null = null;
@@ -30,7 +47,7 @@ export const makeKitLoader = (names: string[]) => {
       const texP = Promise.all(Object.entries(QTEX_FILES).filter(([k]) => !QTEX[k]).map(([k, f]) => tl.loadAsync(staticFile(`models/quaternius-village/${f}.png`)).then((t) => {
         t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = 8; if (!k.endsWith("N")) t.colorSpace = THREE.SRGBColorSpace; QTEX[k] = t;
       }).catch(() => undefined)));
-      kitP = Promise.all([texP, ...names.map((n) => loader.loadAsync(staticFile(`models/${n}${n.endsWith(".gltf") ? "" : ".glb"}`)).then((g) => [key(n), g.scene] as const).catch(() => [key(n), null] as const))])
+      kitP = Promise.all([texP, ...names.map((n) => loader.loadAsync(staticFile(`models/${n}${n.endsWith(".gltf") ? "" : ".glb"}`)).then((g) => { capTextures(g.scene); return [key(n), g.scene] as const; }).catch(() => [key(n), null] as const))])
         .then(([, ...list]) => Object.fromEntries(list.filter((e) => e[1]).map(([n, s]) => [n, s!])) as Kit);
     }
     return kitP;
@@ -356,6 +373,12 @@ export class WorldBase {
     this.sun.color.set(L.sunCol); this.sun.intensity = L.sunI;
     let Rr = THREE.MathUtils.clamp(dist * 1.15 + 2.5, 3, 95);
     if (lname !== "day") Rr = Math.max(Rr, 8);
+    // stable shadows on a moving camera: radius in whole-metre steps, focus snapped to whole shadow texels in the sun's view
+    // plane (a sliding shadow box makes shadow edges crawl and flicker)
+    Rr = Math.ceil(Rr);
+    { const tx = (2 * Rr) / this.sun.shadow.mapSize.x, rt = new THREE.Vector3().crossVectors(V(0, 1, 0), sunDir).normalize(), up = new THREE.Vector3().crossVectors(sunDir, rt);
+      const a = Math.round(focus.dot(rt) / tx) * tx, b = Math.round(focus.dot(up) / tx) * tx, c = focus.dot(sunDir);
+      focus.copy(rt.multiplyScalar(a)).addScaledVector(up, b).addScaledVector(sunDir, c); }
     this.sun.position.copy(focus).addScaledVector(sunDir, 220); this.sun.target.position.copy(focus);
     const sc = this.sun.shadow.camera;
     sc.left = -Rr; sc.right = Rr; sc.top = Rr; sc.bottom = -Rr; sc.near = 20; sc.far = 480; sc.updateProjectionMatrix();

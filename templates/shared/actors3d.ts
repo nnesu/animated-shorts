@@ -8,6 +8,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as skClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { staticFile } from "remotion";
 import { twoTone, INDOOR_K } from "./shade";
+import { capTextures } from "./worldkit";
 /** skin tones (Actor3.skin indexes them) */
 export const SKINS = ["#ffe2c2", "#f5c9a0", "#ecd0b6", "#c99067"];
 
@@ -26,7 +27,7 @@ const T: Record<string, { scene: THREE.Group; clips: THREE.AnimationClip[] }> = 
 let loadP: Promise<void> | null = null;
 /** load the templates a video uses (call from its loadKit) */
 export const loadActors = (names: string[]) => loadP ??= Promise.all(names.map((n) => new GLTFLoader().loadAsync(staticFile(`models/chars3d/${n}.glb`))
-  .then((g) => { T[n] = { scene: g.scene, clips: g.animations }; }))).then(() => undefined);
+  .then((g) => { capTextures(g.scene); T[n] = { scene: g.scene, clips: g.animations }; }))).then(() => undefined);
 
 // ---------------- face, drawn into the skin texture ----------------
 const INK = "#241726", MOUTH = "#5a1e28", N = 1024;

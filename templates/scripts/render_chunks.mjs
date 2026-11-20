@@ -1,6 +1,6 @@
 // Resumable, self-retrying Remotion render: renders in frame chunks, skips chunks that already exist, retries failed ones,
 // then joins them with ffmpeg (stream copy, no re-encode). Safe to re-run after a crash, a sleep or a closed terminal.
-// usage: REMOTION_TMP=<big drive>/remotion-tmp node scripts/render_chunks.mjs <CompositionId> <out.mp4> <totalFrames> [chunk=300] [--redo A-B,C-D]
+// usage: REMOTION_TMP=<big drive>/remotion-tmp node scripts/render_chunks.mjs <CompositionId> <out.mp4> <totalFrames> [chunk=150] [--redo A-B,C-D]
 // --redo: patch loop after a fix: deletes only the chunks overlapping those frames, re-renders them and re-joins (minutes, not a full render).
 // Keep the same chunk size as the first render. Then re-run build_mix.py and short_qa.py.
 // Renders at the composition's native size (1080x1920, no --scale). Deletes the bundle folders each chunk adds to REMOTION_TMP.
@@ -13,8 +13,8 @@ const argv = process.argv.slice(2), di = argv.indexOf("--draft");
 const draft = di >= 0; if (draft) argv.splice(di, 1);
 const ri = argv.indexOf("--redo");
 const redo = ri < 0 ? [] : argv.splice(ri, 2)[1].split(",").map((r) => r.split("-").map(Number));
-const [comp, out, totalArg, chunkArg = "300"] = argv;
-if (!comp || !out || !totalArg) { console.error("usage: REMOTION_TMP=<big drive>/remotion-tmp node scripts/render_chunks.mjs <Comp> <out.mp4> <totalFrames> [chunk=300]"); process.exit(2); }
+const [comp, out, totalArg, chunkArg = "150"] = argv;
+if (!comp || !out || !totalArg) { console.error("usage: REMOTION_TMP=<big drive>/remotion-tmp node scripts/render_chunks.mjs <Comp> <out.mp4> <totalFrames> [chunk=150]"); process.exit(2); }
 if (!process.env.REMOTION_TMP) { console.error("set REMOTION_TMP to a folder on a big drive (each chunk's bundle copies public/, ~1.3 GB)"); process.exit(2); }
 const total = Number(totalArg), chunk = Number(chunkArg);
 const dir = out.replace(/\.mp4$/i, "") + "_chunks";

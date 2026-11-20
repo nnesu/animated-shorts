@@ -1,6 +1,6 @@
 // STARTER world. The engine (sky, sun, wall lanterns, the compact lane at the origin, rooms, local lights) is
 // shared/worldkit.ts; 3D actors are shared/actors3d.ts. Here: this video's people, furniture, light sources and moving
-// props. Everything marked EXAMPLE is the demo: replace it. Light: references/LOOK.md "Light logic".
+// props. Everything marked EXAMPLE is the demo: replace it. Light: references/LOOK.md "Light".
 import * as THREE from "three";
 import { WorldBase, makeKitLoader, TOWN_KIT } from "../../shared/worldkit";
 import { Kit, prop } from "../../shared/build";

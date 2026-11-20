@@ -28,10 +28,14 @@ Read when a step goes wrong or before building sets and framing shots: known tra
 - Empty stands: `crowdBand()` on every tier.
 - Thin decor built from boxes (throne backs, drapes) does not read: paint it on a cut-out plane with `unlit(map, true)`.
 - A hung or wall-mounted prop needs a visible mount (bracket, plank, rope).
+- A `lamp` light near a wall throws a round pool on it; a face-fill spot reaches past the face onto the wall behind. Face fills: narrow spot, distance about 1.2 m, aimed at the head; check the wall behind in a still.
+- Livery / decals placed by rays (`scripts/blender/jet_livery.py`): rays that miss the body hit wings, engines or the tapered nose underside. Filter hits by position (fuselage only, upper nose only) and check a close still of the nose and the wing roots.
 
 ## Framing and readability
 - Check every shot: subject fully in frame, nothing blocking the lens, close-up scale right (a person, not a giant).
 - Anything closer than about 2 m to a lens becomes a cut-off blob at the frame edge. Re-check nearby props whenever a camera moves.
+- Cameras end up inside geometry (an engine, a head, a seat, a pole) on new keys and on the straight path between keys: render the keys and one frame mid-path.
+- Over-the-shoulder on a cartoon character: heads are about 0.8 m wide. Lens about 1 m to the side and 0.5 m back at head height, the prop raised beside the head, its screen end pointing away from the holder.
 - 9:16 frame: horizontal half-width = distance x tan(vfov/2) x 0.5625 (about 0.23 m per metre at fov 44). Budget side-by-side subjects and held props against it.
 - A prop the narration names is in frame with the character; a shot introducing a prop shows where it sits (prop centred, surroundings visible).
 - A foreground prop must be recognisable or gone (a bush cut by the edge reads as a green ball).
@@ -54,5 +58,9 @@ Read when a step goes wrong or before building sets and framing shots: known tra
 - Not installed: Pillow (so no `sbs_sheet.py`; contact sheets with ffmpeg `xstack`, pad the grid with a repeated last tile, no `drawtext`: it segfaults) and scipy.
 - ffmpeg 9 uses `-/filter_complex file`, not `-filter_complex_script`.
 - Bash heredocs with quotes fail: write the file with the Write tool.
+- A `//` comment pasted into the middle of a line hides the rest of that line (it still compiles): comments go at the end of a statement.
+- Scripted edits that insert opening and closing braces at several places: compute every position on the original text first (closer before opener at a shared spot), then check the nesting; mis-nested blocks still compile.
+- Memory: 7.4 GB RAM with an iGPU (`RENDER.md` "Memory"). A freeze leaves orphan render Chrome processes: kill every process whose command line contains `remotion-tmp` before rendering again.
+- `bridge-stills.mjs` runs from the project root only.
 - Scratch `.ts` files inside `out/` break `tsc`: name them `.txt`.
 - Sub-agents cannot write report files: ask for a final message of 150 words or fewer and save it yourself.

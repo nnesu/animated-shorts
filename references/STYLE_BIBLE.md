@@ -39,6 +39,7 @@ Study notes. Videos: vids/ (720p, original EN audio), transcripts: tx/, per-vide
 - Transitions = continuous camera moves: follow an object (bullet, oil stream, ball) from one subject to the next,
   whip pans with motion blur, fly-through (window/porthole), or a 6-8 frame crossfade dissolve when changing place.
 - Slow push-ins during holds; low camera heights; frequent dutch tilts for drama/falls.
+- Our own camera rules (hook visual zoom, pans inside a zone, zone-cut transitions): `LOOK.md` "Hook" and "Camera".
 
 ## Effects
 - Muzzle fire, glow/aura bursts, sparkles on impact, splash sprites, speed lines, dust puffs, music notes, stars,

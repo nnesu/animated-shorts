@@ -2,6 +2,17 @@
 
 Read at the stills check (before any long render), after the final render, and for the review player. Three layers: scripts, one model call, the user. No 0-10 score is ever a gate.
 
+## 0. Pacing pass (before the first stills; the user's review notes of the best short, as a checklist)
+Print the voice as `word@frame` next to the shot plan and check each line of the script:
+- [ ] Hook (`LOOK.md` "Hook"): wide frame 1 with action already running, zoom by ~frame 20, a new visual on each key word, holds under ~1 s.
+- [ ] Every line has its own visual landing on its word; nothing holds over ~1.5 s without a move, an overlay or an animation; no stop between two moves.
+- [ ] Inside a zone only pans; every hard cut changes zone and has a whip pan or a fly-through / map zoom.
+- [ ] The mechanism is shown (diagram, counting numbers, comparison object), with the real procedure and real numbers.
+- [ ] The hero fills 30 % or more and stays in frame (its front / nose too) through every move.
+- [ ] Props and people exist from the shot's first frame (no pop-in); reactions after actions.
+- [ ] Zones look alive and closed: dense skyline, crowds, staged vehicles, fences, foliage.
+Then render stills of every shot change and every narrated beat, not only mid-shot.
+
 ## 1. Stills check (before any long render; repeat for changed shots only)
 
 Frames: the mid frame of every shot. Never a crossfade frame (the double exposure gets flagged as broken).
@@ -50,13 +61,13 @@ Review each flag once yourself. It is a false alarm only if the flagged thing is
 Items 15-17 (3D characters, light) are new and untested on planted defects. Tested on 16 stills (one run): 6 of 6 planted defects found; 2 of 10 good frames flagged, a crossfade frame and a real framing flaw; no flag on 4 covered horizons. Bare horizon, second run on 8 slinky stills: 6 of 6 bare frames flagged, 0 of 2 covered ones (0 of 6 over both runs). The "normal, never flag" line matters: without it 8 of 10 good frames were flagged.
 
 ## 2. After the final render
-`python scripts/short_qa.py out/<name>/video_final.mp4 out/<name>/qa out/<name>/shots.json --voice voiceover/<name>/voice.wav` must exit 0. It fails on: audio vs video length or length vs the voice off by more than 1 frame, frame count not round(duration x fps), black, unplanned white or identical-frame (stalled) spans, loudness outside -15 LUFS +-1, true peak over -1 dBFS. Planned flashes and crossfades come from `shots.json` (`{"shots":[{"id":1,"a":0,"b":130}],"flash":[a,b],"xfade":[[a,b]]}`). Pillow is not installed, so its contact sheets are skipped.
+`python scripts/short_qa.py out/<name>/video_final.mp4 out/<name>/qa out/<name>/shots.json --voice voiceover/<name>/voice.wav` must exit 0. It fails on: audio vs video length or length vs the voice off by more than 1 frame, frame count not round(duration x fps), black, unplanned white or identical-frame (stalled) spans, white frames from a lost WebGL context (centre-crop check: the vignette hides them from a full-frame mean; re-render those chunks), loudness outside -15 LUFS +-1, true peak over -1 dBFS. Planned flashes and crossfades come from `shots.json` (`{"shots":[{"id":1,"a":0,"b":130}],"flash":[a,b],"xfade":[[a,b]]}`). Pillow is not installed, so its contact sheets are skipped.
 
 `HELD` spans are reported, not failed: still holds between fill-in pans are expected; check none is a stalled render. A loop that resets mid-shot reads as a pop (give it an explicit switch time).
 
 ## 3. User review
 After `short_qa.py` exits 0, in the main session (a subagent's background command wakes nobody): set `runtimeArgs` of the `review` entry in `.claude/launch.json` to `scripts/review.mjs`, `<name>`; `preview_stop` any running review server; `preview_start` `review`; run `node scripts/review.mjs <name> --wait-submit` as a background command (one per short). The user comments on frames and presses Submit (Approve when no note is open). The command then prints `submit: approved`, or `submit: N notes` plus one line per open note (`s<shot> f<frame> [tag] <id> <text>`, plus `(box: x y w h % of the frame)`: look there in that frame) and the `--redo` ranges, and exits, which wakes you.
-- `submit: N notes`: `preview_stop` first. Fix: look/horizon/other within the printed `--redo` ranges; audio in the events/cues and the mix only; timing = re-time, then show the user stills before rendering. Render stills of the noted frames and self-check them, `render_chunks.mjs --redo`, mix, `bridge_shots.py`, `short_qa.py`, `node scripts/review.mjs <name> --resolve <ids>` for the fixed notes, restart the player and the waiter, one line to the user.
+- `submit: N notes`: `preview_stop` first. A visual bug not fixed in one try: show the user the still and ask before trying again. Fix: look/horizon/other within the printed `--redo` ranges; audio in the events/cues and the mix only; timing = re-time, then show the user stills before rendering. Render stills of the noted frames and self-check them, `render_chunks.mjs --redo`, mix, `bridge_shots.py`, `short_qa.py`, `node scripts/review.mjs <name> --resolve <ids>` for the fixed notes, restart the player and the waiter, one line to the user.
 - `submit: approved`: Deliver.
 - No Submit and the user says "read comments": `node scripts/review.mjs <name> --dump`.
 

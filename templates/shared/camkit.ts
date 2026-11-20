@@ -85,6 +85,25 @@ export const chain = (start: number, end: number, v0: View, stops: [number, numb
   });
   return longTake(moves, 0, v0.fov, start);
 };
+// ---------------- action cam and zone cuts ----------------
+const lerpV = (a: V3, b: V3, k: number): V3 => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+/** constant-speed path through keys [frame, pos, look, fov]: no ease at the keys (action-cam fly-throughs). Pause = two keys
+ *  with the same pos; turn in place = same pos, new look. Phase through a skin in ~15 f, slow down inside. */
+export const keyed = (K: [number, V3, V3, number][]) => (f: number): Shot => {
+  let i = 0; while (i < K.length - 2 && K[i + 1][0] <= f) i++;
+  const a = K[i], b = K[i + 1], k = clamp01((f - a[0]) / (b[0] - a[0]));
+  return { pos: lerpV(a[1], b[1], k), look: lerpV(a[2], b[2], k), fov: a[3] + (b[3] - a[3]) * k };
+};
+/** whip pan at a zone cut: the camera swings WHIP_ANGLE rad over WHIP frames into the cut (whipOut) and out of it (whipIn);
+ *  dir +1 / -1 = swing direction. List the cut frames as WHIPS in story.ts; scripts/film_finish.py --whips blurs them. */
+export const WHIP = 8, WHIP_ANGLE = 0.6;
+const yawAbout = (s: Shot, a: number): Shot => {
+  const d = [s.look[0] - s.pos[0], s.look[2] - s.pos[2]], c = Math.cos(a), n = Math.sin(a);
+  return { ...s, look: [s.pos[0] + d[0] * c + d[1] * n, s.look[1], s.pos[2] - d[0] * n + d[1] * c] };
+};
+export const whipOut = (T: (f: number) => Shot, cut: number, dir: number) => (f: number): Shot => { const u = (f - (cut - WHIP)) / WHIP; return u > 0 ? yawAbout(T(f), dir * WHIP_ANGLE * u * u) : T(f); };
+export const whipIn = (T: (f: number) => Shot, cut: number, dir: number) => (f: number): Shot => { const u = 1 - (f - cut) / WHIP; return u > 0 ? yawAbout(T(f), -dir * WHIP_ANGLE * u * u) : T(f); };
+
 const mix = (a: Cam, b: Cam, k: number): Cam => ({
   pos: a.pos.map((v, i) => v + (b.pos[i] - v) * k) as V3, look: a.look.map((v, i) => v + (b.look[i] - v) * k) as V3,
   fov: a.fov + (b.fov - a.fov) * k, roll: a.roll + (b.roll - a.roll) * k,

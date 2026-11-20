@@ -15,16 +15,17 @@ Claim, one form:
 | Spot the difference | Points at two near-identical things, one secretly different | "Two runners, the same road, the same finish line, and only one of them ran an extra mile." |
 
 Claim rules:
+- Pick a claim whose act can be shown happening at frame 1 (people mid-task, a machine working): the hook's pictures are planned with the words (`LOOK.md` "Hook").
 - Show the act, hide the reason. Never name the payoff ("...is why your kitchen has a microwave" gives it away).
 - The act fights the expected result (winner thrown away, worst bet made, banned thing everywhere).
 - One concrete, drawable object. Stakes in the same sentence.
 - No date, place name or person name in sentence 1 (a country or a legend is fine). No list of numbers.
 - 5-22 words, usually 12-17.
 
-Lock, one form: mockers laugh or doubt ("Half the gym booed."), a contradiction ("And yet..."), the viewer put inside ("Imagine you're..."), or one short "You see," context line that still hides the why.
+Lock, one form: mockers laugh or doubt ("Half the gym booed."), a contradiction ("And their math was right."), the viewer put inside ("Imagine you're..."), or one short "You see," context line that still hides the why.
 
 ## Body, in this order
-1. **Escalation** (required). About 3 rounds of "the hero acts, it gets worse", moved by time jumps ("A week later...", "By the third game..."). One refrain repeats each round (the same laugh, the same small change growing). Usually present tense or "you" after the hook. Date and place enter here, in passing.
+1. **Escalation** (required). About 3 rounds of "the hero acts, it gets worse", moved by time jumps ("A week later...", "By the third game..."). A refrain may repeat each round when it is a fact ("The computer still says there's plenty of fuel"); never a stock word pair like "Luckily / Unluckily". Usually present tense or "you" after the hook. Date and place enter here, in passing.
 2. **Planted clue** (required), inside the escalation: one small odd detail the reveal will explain.
 3. **Mockers vs a calm hero** (optional): short sarcastic crowd lines, the hero quietly carrying on.
 4. **Fake-out** (optional): the hero seems to fail or nothing happens.
@@ -35,9 +36,9 @@ Lock, one form: mockers laugh or doubt ("Half the gym booed."), a contradiction 
 Other modes: explainer (fact, mechanism, analogy, twist; no cast) or "levels" (each item worse than the last). Use only when the topic has no person acting.
 
 ## Voice
-- 145-250 words (40-90 s). Step 2 turns words into seconds.
+- 145-250 words (40-90 s). Step 2 turns words into seconds. Pauses trimmed to 0.2 s, no dramatic longer pauses.
 - Long setup sentences, then 2-5 word punch lines at the turns ("Then the second basket.").
-- One or two dry comic asides in the narrator's own voice ("He ran like his shoes were full of soup.").
+- 4th-grade wording: short plain sentences, obvious meaning. No comic asides unless the user asks (forced jokes read as unfunny); humour comes from real facts.
 - Dialogue lines under about 10 words. Plain spoken English, contractions.
 - Never describe what the viewer already sees.
 
@@ -47,7 +48,7 @@ A table: script lines | zone | spot | subject (person or hero object) | action o
 - Aim for 2-3 zones per short. A line that needs a new place: reword it so it plays where the camera already is.
 - A line about an object makes it the subject: it gets a close hold and an action (`references/LOOK.md` "Hero objects").
 - Each action is shown step by step (pick up, carry, set down, use), not cut to its result. One hero object carries through the story and its changes add up, each stage visibly on top of the last.
-- The visual for a line lands on its word: plan the action at the word that names it.
+- The visual for a line lands on its word: plan the action at the word that names it. Every line gets its own visual (`LOOK.md` "Show the mechanism"); a line that only explains gets a diagram, numbers or a comparison object.
 
 ## Self-check before showing the user
 - [ ] Sentence 1 hides the why.

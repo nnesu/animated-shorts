@@ -35,11 +35,14 @@ A rule lives in exactly one file: the one that owns its topic. The others point 
 - Final export 1080x1920 only; drafts (`--draft`) for revisions, 1080p once after approval; fixes re-render changed chunks only.
 - World: compact enclosed areas, horizon always covered, rich dressed sets, no flat surfaces, physically plausible, 90 % library models (Quaternius first), coded models copy the library style, motivated light only.
 - Characters: baked Quaternius templates (`chars3d`), face painted into the skin, one ink weight 2.2 px, skin outline only, subject centred, props held with two-hand IK, overlays with a drop shadow.
-- Camera: one take per area, cuts only for place or time, no creep, fill-in pans after 3 quiet seconds.
+- Camera: one take per area, cuts only for place or time (whip pan, fly-through or map zoom), no creep, fill-in pans after 3 quiet seconds. Hook visual zoom at frame 1 of every short; an entertaining hook (`LOOK.md` "Hook"); every narration line gets its own visual on its word; subject at least 30 % of the frame.
+- Look: golden hour with the "shader" tone and glowing windows by default, `film_finish.py` on every final, no grain.
+- Script: 4th-grade wording, no forced jokes or stock refrains, pauses 0.2 s.
+- Rendering: 150-frame chunks, `memguard.ps1` alongside, orphan render Chrome killed after a freeze.
 - No 0-10 score is ever a gate. No anchor images. Look changes are judged pairwise, before against after.
 - Stills QA: agent on the first full set, self-checks after fixes, one agent check before the render, then the user approves the stills. After the final render the review player's Submit is the go-ahead for fixes (stills first only when `TOTAL` changes). Never an open "repeat until the agent is clean" loop.
 - Sound effects from free libraries first; music is short cues per scene, generation allowed; narration pauses about 0.2 s; -15 LUFS.
-- Finished shorts are never edited; molasses and microwave are reference only.
+- Finished shorts are never edited; molasses and microwave are reference only; gimli-glider is the quality reference.
 - `out/<name>/comments.json` holds the user's review notes: resolve with `review.mjs --resolve`, never delete or reword. Submit writes `out/<name>/submit.json`, consumed by `review.mjs --wait-submit`.
 - `REMOTION_TMP=C:/remotion-tmp` on this PC.
 - Look tweaks: one still first, then wait. No clip render unless asked. No rules for rare edge cases.
