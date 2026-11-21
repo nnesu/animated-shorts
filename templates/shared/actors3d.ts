@@ -12,7 +12,7 @@ import { capTextures } from "./worldkit";
 /** skin tones (Actor3.skin indexes them) */
 export const SKINS = ["#ffe2c2", "#f5c9a0", "#ecd0b6", "#c99067"];
 
-export type Expr3 = "neutral" | "shock" | "grin" | "nervous" | "smile" | "stern";
+export type Expr3 = "neutral" | "shock" | "grin" | "nervous" | "smile" | "stern" | "talk";
 /** standard clips every template carries (scripts/bake_cast.mjs CLIPS) */
 export type Clip3 = "Idle_Loop" | "Idle_Talking_Loop" | "Walk_Formal_Loop" | "Walk_Loop" | "Jog_Fwd_Loop" | "Idle_FoldArms_Loop"
   | "Sitting_Idle_Loop" | "Sitting_Talking_Loop" | "Yes" | "Idle_No_Loop";
@@ -36,6 +36,7 @@ const FACE: Record<Expr3, { brow: [number, number]; eye: string; mouth: string }
   neutral: { brow: [0, 0], eye: "dot", mouth: "dash" }, shock: { brow: [0.16, 0.05], eye: "wide", mouth: "O" },
   grin: { brow: [0.06, 0], eye: "happy", mouth: "D" }, nervous: { brow: [0.06, 0.12], eye: "dot", mouth: "wave" },
   smile: { brow: [0.04, 0], eye: "happy", mouth: "smile" }, stern: { brow: [-0.04, -0.1], eye: "dot", mouth: "frown" },
+  talk: { brow: [0.02, 0], eye: "dot", mouth: "O" }, // open mouth with calm eyes: alternate with "neutral" while a line plays
 };
 type FaceUV = [number, number, number, number, number]; // uL, vL, uR, vR, eye span (UV units), from the template
 const drawFace = (skin: string, f: FaceUV, e: Expr3, shut: boolean) => {

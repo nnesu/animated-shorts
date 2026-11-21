@@ -46,7 +46,7 @@ Read before editing the starter files, instead of the engine source. The four st
 - In `world.ts`: `loadKit = async () => { const [k] = await Promise.all([baseKit(), loadActors([...names])]); return k; }`; in the constructor `spawnActor(this.root, actor, i)` per actor; in `pose(id, t)` `poseActor(a, t, storyTime, camPos)`.
 - `Actor3`: `{ n, h (m), at: (t) => [x, z, yaw] (yaw 0 faces +z), clip?, expr?: (t) => Expr3, blink?: [s...], point?: (t) => 0..1, skin?: 0-3 (SKINS), indoor? }`. `indoor: true` inside a room.
 - `clip`: `Idle_Loop` (default), `Idle_Talking_Loop`, `Walk_Formal_Loop`, `Walk_Loop`, `Jog_Fwd_Loop`, `Idle_FoldArms_Loop`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Yes`, `Idle_No_Loop`. More: add to `CLIPS` in `scripts/bake_cast.mjs`, re-bake with `--force`.
-- `Expr3`: neutral, shock, grin, nervous, smile, stern. Swap on a blink time.
+- `Expr3`: neutral, shock, grin, nervous, smile, stern, talk. Swap on a blink time; a speaking line alternates `talk` / `neutral` every 3-5 frames.
 - Held props: after `poseActor`, `holdProp(a, [x, y, z], r, w, rub, t)` puts both palms either side of the prop (radius r) and slightly behind it, blended from the clip by w (0..1); `rub` = scrubbing amplitude. One hand: `reach(a, "L" | "R", target, w)`. Move the prop to the returned centre.
 - Walkers: `at` moves them; use a walk clip, about 1.0-1.2 m/s for `Walk_Formal_Loop`.
 
