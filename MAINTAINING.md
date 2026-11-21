@@ -37,7 +37,7 @@ A rule lives in exactly one file: the one that owns its topic. The others point 
 - Characters: baked Quaternius templates (`chars3d`), face painted into the skin, one ink weight 2.2 px, skin outline only, subject centred, props held with two-hand IK, overlays with a drop shadow.
 - Camera: one take per area, cuts only for place or time (whip pan, fly-through or map zoom), no creep, fill-in pans after 3 quiet seconds. Hook visual zoom at frame 1 of every short; an entertaining hook (`LOOK.md` "Hook"); every narration line gets its own visual on its word; subject at least 30 % of the frame.
 - Look: golden hour with the "shader" tone and glowing windows by default, `film_finish.py` on every final, no grain.
-- Script: 4th-grade wording, no forced jokes or stock refrains, pauses 0.2 s.
+- Script: built with the `SCRIPT.md` builder (gates, tracks, blocks) and passes `lint_script.py`; 4th-grade wording, no forced jokes or stock refrains, pauses 0.2 s.
 - Rendering: 150-frame chunks, `memguard.ps1` alongside, orphan render Chrome killed after a freeze.
 - No 0-10 score is ever a gate. No anchor images. Look changes are judged pairwise, before against after.
 - Stills QA: agent on the first full set, self-checks after fixes, one agent check before the render, then the user approves the stills. After the final render the review player's Submit is the go-ahead for fixes (stills first only when `TOTAL` changes). Never an open "repeat until the agent is clean" loop.

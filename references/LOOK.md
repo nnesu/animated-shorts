@@ -11,6 +11,7 @@ Reference: the Gimli Glider hook (`src/archive/gimli-glider/story.ts` shot 1, fr
 - **Something glows or moves in every hook frame:** screens, meters, calculator halo, headlights, lit windows.
 - **Tease, do not tell:** the visuals show the act the claim names (fuel going in), never the payoff.
 - **Holds under ~1 s in the hook;** no stop between two moves; props in hands from frame 0 (no pop-in).
+- **The hook is both sentences (about 9 s):** sentence 1 shows `FRAME1_ACT` on `FRAME1_PROP`; sentence 2 turns to the skeptic or crowd reacting (laugh, grab, stare) on its word (`SCRIPT.md` "Step 3").
 
 ## World
 - One compact enclosed area per group of scenes: the engine's `town: "lane"` (a 6 m lane, about 50 m long, closed at both ends by a bend with houses across). No street, road or house row runs out of frame; close every view with a bend, a building or a wall. Other areas sit 100+ m away and are enclosed the same way.
@@ -61,6 +62,7 @@ The user's target: "Minecraft shaders" contrast plus "Vice City" glow. Three lay
 - Each narration line has its own on-screen action, landing on its word. A shot that only shows a person looking or holding something for over ~1.5 s gets a move, an overlay or an animation.
 - Explain how things work on screen: a cut-away diagram card (`cast.ts` overlay) animated over the line that names it, numbers that count from the first frame of the card, the sum popping over the head, comparison objects (a balance scale with labelled pans).
 - After an action, people react (shock face, hands on head or mouth) instead of looping a clip.
+- The reveal ("You see,") gets a cut-away of the mechanism acting on the planted clue; the analogy line shows its everyday object doing the same thing; the closer returns to the skeptic or the hero object.
 
 ## Hero objects (an object is the subject of a line)
 - It gets the frame: a close hold (object at 40-60 % of the height, fov 30-40, focus on it), reached by a move from the wide.

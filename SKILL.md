@@ -10,7 +10,7 @@ Commands run from the project root, in Bash. `SK` = `.claude/skills/cartoon-3d-s
 ## Where to look
 | Task | Read / use |
 |---|---|
-| Script, hook, zone map | `references/SCRIPT.md`; layout `templates/SCRIPT_example.md` |
+| Topic gates, script, hook, zone map | `references/SCRIPT.md` (builder + `scripts/lint_script.py`); layout `templates/SCRIPT_example.md` |
 | Writing `story.ts` / `world.ts` (signatures) | `references/API.md` (never the engine source, never old shorts) |
 | How it must look: hook, sets, light, camera, characters | `references/LOOK.md` |
 | Known traps (voice, props, framing, this PC) | `references/GOTCHAS.md` |
@@ -37,8 +37,8 @@ Finished shorts in `src/videos/` and `src/archive/` are never edited. Quality re
 - Save after every step. Two stops for the user: script and zone map, then the final stills before the final render. After that the review player's Submit approves fixes (a `TOTAL` change shows stills first).
 
 ## Pipeline
-1. **Topic and facts.** One surprising true story with a visual, physical cause and effect, plus an everyday analogy. Facts with sources go at the top of `src/videos/<name>/SCRIPT.md`.
-2. **Script and zone map** (`references/SCRIPT.md`). Word count = seconds x words/s measured from a one-sentence sample of the voice (no sample: 3, check after the take). Write the self-check into `SCRIPT.md`, then the zone map. **Stop until the user approves both.**
+1. **Topic and facts.** One surprising true story that passes the five topic gates (`references/SCRIPT.md` "Step 0"). Facts with sources go at the top of `src/videos/<name>/SCRIPT.md`.
+2. **Script and zone map** (`references/SCRIPT.md` steps 1-5): track and mode, fact slots, blocks, then `python scripts/lint_script.py src/videos/<name>/script.txt --mode <full|compact> --track <A|B|C> --wps <pace>` until it exits 0 (pace measured from a one-sentence voice sample; none: 3.2). Write the lint summary and self-check into `SCRIPT.md`, then the zone map. **Stop until the user approves both.**
 3. **Video folder and cast** (while the user records). Copy `templates/starter/*` to `src/videos/<name>/`, rename `Short.tsx` to `<Name>.tsx` and `StarterShort` / `STARTER_FRAMES` inside it, register it in `src/Root.tsx`. Replace the parts marked `EXAMPLE`. Missing `src/shared/` or `scripts/` files: copy from `templates/`. Cast: `public/models/chars3d/`; bake missing ones with `node scripts/bake_cast.mjs <Name ...>`.
 4. **Build the zones** (no timing needed). Grep `public/models/INDEX.txt`, table the picks in `src/videos/<name>/PROPS.md`. Missing model: fetch a free CC0 pack into `public/models/<pack>/`, append it to `INDEX.txt` and `SOURCES.md`. Sets, rooms, light sources, cast on their spots. Show one establishing still per zone and carry on unless the user objects.
 5. **Voice.** The user drops the take in `voiceover/<name>/` (`voice_raw.wav`, or numbered parts joined in order with ffmpeg). `python scripts/voice_trim.py voiceover/<name>/voice_raw.wav voiceover/<name>/voice.wav`, then `python scripts/words_whisper.py voiceover/<name>/voice.wav voiceover/<name>/words.json`. Never read `words.json`: print it as `word@frame` (`references/GOTCHAS.md` "Voice").

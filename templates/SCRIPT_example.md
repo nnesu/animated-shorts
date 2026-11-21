@@ -1,5 +1,5 @@
 # "The Bridge That Fell for a Song" — original script v1 (2026-10-30)
-Format example ONLY (narration layout: facts with source on top, then one sentence per line by beat). The length and words/s are not targets: set them per video from the story and the measured voice pace. Its beats (setting, "Luckily / Unluckily") are an old structure: beats come from `references/SCRIPT.md`.
+Format example ONLY (facts with source on top, then one sentence per line). It predates the builder: a new SCRIPT.md also has gates, track/mode, block sequence, fact slots, beat tags per line, the lint summary, self-check and zone map (`references/SCRIPT.md` "Step 5"). Its words and beats ("Luckily / Unluckily") are an old structure and fail the linter: never copy them.
 Facts: Broughton Suspension Bridge, Salford, 12 April 1831; 74 men of the 60th Rifle Corps marching four abreast;
 felt the bridge vibrate in time with their steps, found it amusing, some whistled a marching tune and stepped to it;
 a badly forged single bolt in a stay-chain snapped; one end fell 16-18 ft into the River Irwell, about 2 ft deep there;
